@@ -1,0 +1,464 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-mono); }
+.vm-shell {
+  background: #0d1117;
+  border-radius: var(--border-radius-lg);
+  border: 0.5px solid #30363d;
+  overflow: hidden;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+}
+.title-bar {
+  background: #161b22;
+  border-bottom: 0.5px solid #30363d;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dot { width: 12px; height: 12px; border-radius: 50%; }
+.dot-r { background: #ff5f57; }
+.dot-y { background: #febc2e; }
+.dot-g { background: #28c840; }
+.title-text { color: #8b949e; font-size: 12px; margin-left: 8px; letter-spacing: 0.05em; }
+.main-layout { display: flex; flex: 1; min-height: 0; }
+.sidebar {
+  width: 220px;
+  border-right: 0.5px solid #30363d;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.sidebar-section { padding: 12px 14px; border-bottom: 0.5px solid #21262d; }
+.sidebar-label { color: #6e7681; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+.reg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.reg-item { display: flex; justify-content: space-between; align-items: center; }
+.reg-name { color: #58a6ff; font-size: 11px; }
+.reg-val { color: #e6edf3; font-size: 11px; font-family: var(--font-mono); }
+.reg-val.changed { color: #ffa657; }
+.sp-pc { display: flex; flex-direction: column; gap: 4px; }
+.mem-bar { height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.mem-fill { height: 100%; background: linear-gradient(90deg, #58a6ff, #3fb950); width: 0.1%; transition: width 0.4s; }
+.mem-label { color: #6e7681; font-size: 10px; margin-top: 3px; }
+.flag-row { display: flex; gap: 6px; }
+.flag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: #21262d; color: #6e7681; }
+.flag.on { background: #1f3f1f; color: #3fb950; }
+.content-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.tabs { display: flex; border-bottom: 0.5px solid #30363d; background: #161b22; }
+.tab { padding: 8px 14px; font-size: 11px; color: #6e7681; cursor: pointer; border-bottom: 2px solid transparent; }
+.tab.active { color: #e6edf3; border-bottom-color: #58a6ff; }
+.terminal {
+  flex: 1; padding: 14px 16px; overflow-y: auto; font-size: 12px;
+  line-height: 1.7; min-height: 200px;
+}
+.line-out { color: #e6edf3; }
+.line-sys { color: #3fb950; }
+.line-err { color: #f85149; }
+.line-info { color: #58a6ff; }
+.line-warn { color: #ffa657; }
+.line-dim { color: #6e7681; }
+.asm-view { flex: 1; overflow-y: auto; padding: 12px; font-size: 11px; }
+.asm-line { display: flex; gap: 10px; align-items: center; padding: 3px 6px; border-radius: 3px; }
+.asm-line.current { background: #1c2d3a; }
+.asm-line.executed { background: #1a2a1a; }
+.asm-addr { color: #6e7681; min-width: 36px; }
+.asm-byte { color: #58a6ff; min-width: 22px; }
+.asm-mnem { color: #ffa657; min-width: 50px; }
+.asm-arg { color: #e6edf3; }
+.asm-comment { color: #3d4d3d; font-size: 10px; }
+.asm-arrow { color: #f85149; font-size: 10px; }
+.ctrl-bar {
+  padding: 10px 14px; border-top: 0.5px solid #30363d;
+  background: #161b22; display: flex; gap: 8px; align-items: center;
+}
+.btn {
+  padding: 5px 14px; border-radius: 4px; border: 0.5px solid #30363d;
+  background: #21262d; color: #e6edf3; font-size: 11px;
+  cursor: pointer; font-family: var(--font-mono);
+}
+.btn:hover { background: #2d333b; border-color: #58a6ff; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: #1f3f6e; border-color: #58a6ff; color: #58a6ff; }
+.btn-primary:hover { background: #1c4a8a; }
+.btn-green { background: #1a3a1a; border-color: #3fb950; color: #3fb950; }
+.btn-green:hover { background: #22502a; }
+.speed-label { color: #6e7681; font-size: 11px; margin-left: 6px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #3fb950; margin-left: auto; }
+.status-dot.idle { background: #6e7681; }
+.status-dot.running { animation: blink 0.6s infinite; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+.prompt-line { display: flex; gap: 6px; align-items: center; padding-top: 4px; }
+.prompt-sym { color: #3fb950; }
+.prompt-input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: #e6edf3; font-family: var(--font-mono); font-size: 12px;
+}
+.badge { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; vertical-align: middle; margin-left: 4px; }
+.badge-blue { background: #1f3f6e; color: #58a6ff; }
+.badge-green { background: #1a3a1a; color: #3fb950; }
+</style>
+
+<h2 class="sr-only">MiniOS 虛擬機模擬器：互動式 CPU 狀態顯示與指令執行終端</h2>
+
+<div class="vm-shell">
+  <div class="title-bar">
+    <div class="dot dot-r"></div>
+    <div class="dot dot-y"></div>
+    <div class="dot dot-g"></div>
+    <span class="title-text">miniOS v0.1 — Virtual Machine Simulator</span>
+  </div>
+
+  <div class="main-layout">
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Registers</div>
+        <div class="reg-grid" id="reg-grid">
+          <div class="reg-item"><span class="reg-name">R0</span><span class="reg-val" id="r0">0x0000</span></div>
+          <div class="reg-item"><span class="reg-name">R1</span><span class="reg-val" id="r1">0x0000</span></div>
+          <div class="reg-item"><span class="reg-name">R2</span><span class="reg-val" id="r2">0x0000</span></div>
+          <div class="reg-item"><span class="reg-name">R3</span><span class="reg-val" id="r3">0x0000</span></div>
+          <div class="reg-item"><span class="reg-name">R4</span><span class="reg-val" id="r4">0x0000</span></div>
+          <div class="reg-item"><span class="reg-name">R5</span><span class="reg-val" id="r5">0x0000</span></div>
+          <div class="reg-item"><span class="reg-name">R6</span><span class="reg-val" id="r6">0x0000</span></div>
+          <div class="reg-item"><span class="reg-name">R7</span><span class="reg-val" id="r7">0x0000</span></div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">CPU State</div>
+        <div class="sp-pc">
+          <div class="reg-item"><span class="reg-name">PC</span><span class="reg-val" id="pc-val">0x0000</span></div>
+          <div class="reg-item"><span class="reg-name">SP</span><span class="reg-val" id="sp-val">0xFFFF</span></div>
+          <div class="reg-item"><span class="reg-name">Halt</span><span class="reg-val" id="halt-val" style="color:#f85149">false</span></div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Flags</div>
+        <div class="flag-row" id="flags">
+          <span class="flag" id="f-z">Z</span>
+          <span class="flag" id="f-n">N</span>
+          <span class="flag" id="f-c">C</span>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Memory (64KB)</div>
+        <div class="mem-bar"><div class="mem-fill" id="mem-fill"></div></div>
+        <div class="mem-label" id="mem-label">Used: 0 / 65536 bytes</div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Stack</div>
+        <div id="stack-view" style="color:#6e7681; font-size:11px; min-height:40px;">(empty)</div>
+      </div>
+    </div>
+
+    <div class="content-area">
+      <div class="tabs">
+        <div class="tab active" id="tab-term" onclick="switchTab('term')">Terminal</div>
+        <div class="tab" id="tab-asm" onclick="switchTab('asm')">Disassembly</div>
+      </div>
+      <div id="view-term" style="display:flex;flex-direction:column;flex:1;">
+        <div class="terminal" id="terminal"></div>
+        <div class="ctrl-bar">
+          <div class="prompt-line" style="flex:1;border:0.5px solid #30363d;border-radius:4px;padding:4px 10px;">
+            <span class="prompt-sym">$</span>
+            <input class="prompt-input" id="cmd-input" placeholder="輸入指令: run / step / reset / help" onkeydown="handleCmd(event)">
+          </div>
+          <div class="status-dot idle" id="status-dot"></div>
+        </div>
+      </div>
+      <div id="view-asm" style="display:none;flex-direction:column;flex:1;">
+        <div class="asm-view" id="asm-view"></div>
+        <div class="ctrl-bar">
+          <button class="btn btn-primary" onclick="handleRun()">Run All</button>
+          <button class="btn" onclick="handleStep()">Step</button>
+          <button class="btn" onclick="handleReset()">Reset</button>
+          <button class="btn" onclick="switchTab('term')">Terminal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const OP = { MOV:0x01, ADD:0x02, SUB:0x03, CMP:0x04, JMP:0x05, JZ:0x06, PUSH:0x07, POP:0x08, INT:0x09, HALT:0xFF };
+const INT_PRINT_STR = 0x01;
+const INT_PRINT_REG = 0x02;
+const INT_EXIT = 0xFF;
+
+let cpu = null;
+let running = false;
+let stepTimeout = null;
+
+function makeCPU() {
+  return {
+    regs: new Uint16Array(8),
+    pc: 0,
+    sp: 0xFFFF,
+    halted: false,
+    zero: false,
+    neg: false,
+    carry: false,
+    memory: new Uint8Array(65536),
+    stack: [],
+    usedBytes: 0
+  };
+}
+
+const PROGRAM = [
+  { op: OP.MOV, dst: 0, val: 'H'.charCodeAt(0), comment: 'MOV R0, 72 ; H' },
+  { op: OP.PUSH, reg: 0, comment: 'PUSH R0' },
+  { op: OP.MOV, dst: 0, val: 'e'.charCodeAt(0), comment: 'MOV R0, 101 ; e' },
+  { op: OP.PUSH, reg: 0, comment: 'PUSH R0' },
+  { op: OP.MOV, dst: 0, val: 'l'.charCodeAt(0), comment: 'MOV R0, 108 ; l' },
+  { op: OP.PUSH, reg: 0, comment: 'PUSH R0' },
+  { op: OP.MOV, dst: 0, val: 'l'.charCodeAt(0), comment: 'MOV R0, 108 ; l' },
+  { op: OP.PUSH, reg: 0, comment: 'PUSH R0' },
+  { op: OP.MOV, dst: 0, val: 'o'.charCodeAt(0), comment: 'MOV R0, 111 ; o' },
+  { op: OP.PUSH, reg: 0, comment: 'PUSH R0' },
+  { op: OP.MOV, dst: 0, val: ' '.charCodeAt(0), comment: 'MOV R0, 32  ; space' },
+  { op: OP.PUSH, reg: 0, comment: 'PUSH R0' },
+  { op: OP.MOV, dst: 0, val: 'O'.charCodeAt(0), comment: 'MOV R0, 79  ; O' },
+  { op: OP.PUSH, reg: 0, comment: 'PUSH R0' },
+  { op: OP.MOV, dst: 0, val: 'S'.charCodeAt(0), comment: 'MOV R0, 83  ; S' },
+  { op: OP.PUSH, reg: 0, comment: 'PUSH R0' },
+  { op: OP.MOV, dst: 1, val: 8,  comment: 'MOV R1, 8   ; char count' },
+  { op: OP.INT, num: INT_PRINT_STR, comment: 'INT 0x01    ; syscall: print_str' },
+  { op: OP.MOV, dst: 2, val: 42, comment: 'MOV R2, 42' },
+  { op: OP.MOV, dst: 3, val: 58, comment: 'MOV R3, 58' },
+  { op: OP.ADD, dst: 4, src1: 2, src2: 3, comment: 'ADD R4, R2, R3 ; 42+58=100' },
+  { op: OP.INT, num: INT_PRINT_REG, comment: 'INT 0x02    ; syscall: print_reg R4' },
+  { op: OP.INT, num: INT_EXIT, comment: 'INT 0xFF    ; syscall: exit' },
+  { op: OP.HALT, comment: 'HALT' }
+];
+
+let instrLog = [];
+let outputLog = [];
+
+function toHex4(n) { return '0x' + n.toString(16).toUpperCase().padStart(4,'0'); }
+function toHex2(n) { return '0x' + n.toString(16).toUpperCase().padStart(2,'0'); }
+
+function resetVM() {
+  cpu = makeCPU();
+  instrLog = [];
+  outputLog = [];
+  loadProgram();
+  updateUI();
+}
+
+function loadProgram() {
+  let addr = 0;
+  PROGRAM.forEach((instr, i) => {
+    instr._addr = addr;
+    cpu.memory[addr++] = instr.op;
+    if (instr.op === OP.MOV) { cpu.memory[addr++] = instr.dst; cpu.memory[addr++] = instr.val; }
+    else if (instr.op === OP.ADD || instr.op === OP.SUB) { cpu.memory[addr++] = instr.dst; cpu.memory[addr++] = instr.src1; cpu.memory[addr++] = instr.src2; }
+    else if (instr.op === OP.PUSH || instr.op === OP.POP) { cpu.memory[addr++] = instr.reg; }
+    else if (instr.op === OP.INT) { cpu.memory[addr++] = instr.num; }
+    else if (instr.op === OP.JMP || instr.op === OP.JZ) { cpu.memory[addr++] = instr.target || 0; }
+  });
+  cpu.usedBytes = addr;
+  cpu.pc = 0;
+}
+
+let changedRegs = new Set();
+
+function executeOne() {
+  if (cpu.halted || cpu.pc >= PROGRAM.length) return false;
+  const instr = PROGRAM[cpu.pc];
+  changedRegs.clear();
+  const prevRegs = [...cpu.regs];
+  cpu.pc++;
+
+  if (instr.op === OP.MOV) {
+    cpu.regs[instr.dst] = instr.val;
+    changedRegs.add(instr.dst);
+    instrLog.push({ addr: instr._addr, instr, result: `R${instr.dst} ← ${instr.val}` });
+  } else if (instr.op === OP.ADD) {
+    const a = cpu.regs[instr.src1], b = cpu.regs[instr.src2];
+    cpu.regs[instr.dst] = (a + b) & 0xFFFF;
+    changedRegs.add(instr.dst);
+    cpu.zero = cpu.regs[instr.dst] === 0;
+    cpu.carry = (a + b) > 0xFFFF;
+    instrLog.push({ addr: instr._addr, instr, result: `R${instr.dst} = ${a}+${b} = ${cpu.regs[instr.dst]}` });
+  } else if (instr.op === OP.PUSH) {
+    cpu.stack.push(cpu.regs[instr.reg]);
+    cpu.sp = (cpu.sp - 2) & 0xFFFF;
+    instrLog.push({ addr: instr._addr, instr, result: `push ${cpu.regs[instr.reg]} → stack[${cpu.stack.length-1}]` });
+  } else if (instr.op === OP.POP) {
+    if (cpu.stack.length > 0) {
+      cpu.regs[instr.reg] = cpu.stack.pop();
+      changedRegs.add(instr.reg);
+      cpu.sp = (cpu.sp + 2) & 0xFFFF;
+    }
+    instrLog.push({ addr: instr._addr, instr, result: `pop → R${instr.reg}` });
+  } else if (instr.op === OP.INT) {
+    if (instr.num === INT_PRINT_STR) {
+      const count = cpu.regs[1];
+      let chars = [];
+      for (let i = count - 1; i >= 0; i--) chars.push(String.fromCharCode(cpu.stack[cpu.stack.length - 1 - i] || 0));
+      const str = chars.join('');
+      outputLog.push({ type: 'sys', text: str });
+      instrLog.push({ addr: instr._addr, instr, result: `syscall print_str → "${str}"` });
+    } else if (instr.num === INT_PRINT_REG) {
+      const val = cpu.regs[4];
+      outputLog.push({ type: 'info', text: `R4 = ${val} (${toHex4(val)})` });
+      instrLog.push({ addr: instr._addr, instr, result: `syscall print_reg R4=${val}` });
+    } else if (instr.num === INT_EXIT) {
+      outputLog.push({ type: 'warn', text: 'process exited (code 0)' });
+      instrLog.push({ addr: instr._addr, instr, result: 'syscall exit' });
+      cpu.halted = true;
+    }
+  } else if (instr.op === OP.HALT) {
+    cpu.halted = true;
+    instrLog.push({ addr: instr._addr, instr, result: 'CPU halted' });
+    return false;
+  }
+  return !cpu.halted;
+}
+
+function updateUI() {
+  for (let i = 0; i < 8; i++) {
+    const el = document.getElementById('r' + i);
+    el.textContent = toHex4(cpu.regs[i]);
+    el.className = 'reg-val' + (changedRegs.has(i) ? ' changed' : '');
+  }
+  document.getElementById('pc-val').textContent = toHex4(cpu.pc);
+  document.getElementById('sp-val').textContent = toHex4(cpu.sp);
+  document.getElementById('halt-val').textContent = cpu.halted ? 'true' : 'false';
+  document.getElementById('halt-val').style.color = cpu.halted ? '#f85149' : '#3fb950';
+  document.getElementById('f-z').className = 'flag' + (cpu.zero ? ' on' : '');
+  document.getElementById('f-n').className = 'flag' + (cpu.neg ? ' on' : '');
+  document.getElementById('f-c').className = 'flag' + (cpu.carry ? ' on' : '');
+  const pct = Math.min(100, (cpu.usedBytes / 65536) * 100);
+  document.getElementById('mem-fill').style.width = pct + '%';
+  document.getElementById('mem-label').textContent = `Used: ${cpu.usedBytes} / 65536 bytes`;
+  const sv = document.getElementById('stack-view');
+  if (cpu.stack.length === 0) sv.innerHTML = '<span style="color:#6e7681;">(empty)</span>';
+  else sv.innerHTML = cpu.stack.slice(-5).reverse().map((v,i) =>
+    `<div style="font-size:10px;color:${i===0?'#ffa657':'#6e7681'};">[${cpu.stack.length-i-1}] ${String.fromCharCode(v)} (${v})</div>`
+  ).join('');
+  renderTerminal();
+  renderAsm();
+}
+
+function renderTerminal() {
+  const t = document.getElementById('terminal');
+  let html = '';
+  html += `<div class="line-dim">─── miniOS Kernel Boot ─────────────────────────</div>`;
+  html += `<div class="line-info">[boot] Loading program: ${PROGRAM.length} instructions, ${cpu.usedBytes} bytes</div>`;
+  html += `<div class="line-dim">[boot] Memory mapped: 0x0000 – ${toHex4(cpu.usedBytes - 1)}</div>`;
+  html += `<div class="line-dim">─── Execution Log ───────────────────────────────</div>`;
+  instrLog.forEach(entry => {
+    const mnem = getMnem(entry.instr);
+    html += `<div class="line-out"><span style="color:#6e7681;">${toHex4(entry.addr)}</span>  <span style="color:#58a6ff;">${entry.instr.op.toString(16).toUpperCase().padStart(2,'0')}</span>  <span style="color:#ffa657;">${mnem}</span>  <span style="color:#6e7681;">→ ${entry.result}</span></div>`;
+  });
+  if (outputLog.length > 0) {
+    html += `<div class="line-dim">─── Output ──────────────────────────────────────</div>`;
+    outputLog.forEach(o => {
+      if (o.type === 'sys') html += `<div class="line-sys">$ ${o.text}</div>`;
+      else if (o.type === 'info') html += `<div class="line-info">→ ${o.text}</div>`;
+      else if (o.type === 'warn') html += `<div class="line-warn">! ${o.text}</div>`;
+    });
+  }
+  if (cpu.halted) html += `<div class="line-err">─── VM Halted ────────────────────────────────────</div>`;
+  t.innerHTML = html;
+  t.scrollTop = t.scrollHeight;
+}
+
+function getMnem(instr) {
+  if (instr.op === OP.MOV) return `MOV R${instr.dst}, ${instr.val}`;
+  
+  // 修改這裡：顯示目的地、來源1、來源2
+  if (instr.op === OP.ADD) return `ADD R${instr.dst}, R${instr.src1}, R${instr.src2}`;
+  if (instr.op === OP.SUB) return `SUB R${instr.dst}, R${instr.src1}, R${instr.src2}`;
+  
+  if (instr.op === OP.PUSH) return `PUSH R${instr.reg}`;
+  if (instr.op === OP.POP) return `POP R${instr.reg}`;
+  if (instr.op === OP.INT) return `INT ${toHex2(instr.num)}`;
+  if (instr.op === OP.HALT) return 'HALT';
+  return '???';
+}
+
+function renderAsm() {
+  const av = document.getElementById('asm-view');
+  const executed = new Set(instrLog.map(e => e.addr));
+  av.innerHTML = PROGRAM.map(instr => {
+    const isCurrent = instr._addr !== undefined && PROGRAM[cpu.pc] && instr._addr === PROGRAM[cpu.pc]._addr && !cpu.halted;
+    const isDone = executed.has(instr._addr);
+    const cls = isCurrent ? 'asm-line current' : (isDone ? 'asm-line executed' : 'asm-line');
+    const arrow = isCurrent ? '<span class="asm-arrow">▶</span>' : '<span style="width:10px;display:inline-block;"></span>';
+    return `<div class="${cls}">${arrow}<span class="asm-addr">${toHex4(instr._addr||0)}</span><span class="asm-byte">${instr.op.toString(16).toUpperCase().padStart(2,'0')}</span><span class="asm-mnem">${getMnem(instr)}</span><span class="asm-comment">${instr.comment||''}</span></div>`;
+  }).join('');
+}
+
+function switchTab(t) {
+  document.getElementById('tab-term').className = 'tab' + (t==='term'?' active':'');
+  document.getElementById('tab-asm').className = 'tab' + (t==='asm'?' active':'');
+  document.getElementById('view-term').style.display = t==='term' ? 'flex' : 'none';
+  document.getElementById('view-asm').style.display = t==='asm' ? 'flex' : 'none';
+}
+
+function handleStep() {
+  if (cpu.halted) { logCmd('VM already halted. Type "reset" to restart.', 'err'); return; }
+  executeOne();
+  updateUI();
+}
+
+async function handleRun() {
+  if (cpu.halted) { logCmd('VM already halted. Type "reset" to restart.', 'err'); return; }
+  document.getElementById('status-dot').className = 'status-dot running';
+  while (!cpu.halted && cpu.pc < PROGRAM.length) {
+    executeOne();
+    updateUI();
+    await delay(180);
+  }
+  document.getElementById('status-dot').className = 'status-dot idle';
+}
+
+function handleReset() {
+  resetVM();
+  logCmd('VM reset.', 'info');
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+let termExtra = [];
+
+function logCmd(msg, type='out') { termExtra.push({msg, type}); renderTerminalExtra(); }
+function renderTerminalExtra() {
+  const t = document.getElementById('terminal');
+  termExtra.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'line-' + e.type;
+    div.textContent = e.msg;
+    t.appendChild(div);
+  });
+  termExtra = [];
+  t.scrollTop = t.scrollHeight;
+}
+
+function handleCmd(e) {
+  if (e.key !== 'Enter') return;
+  const val = document.getElementById('cmd-input').value.trim().toLowerCase();
+  document.getElementById('cmd-input').value = '';
+  if (!val) return;
+  const t = document.getElementById('terminal');
+  const div = document.createElement('div');
+  div.className = 'line-dim';
+  div.textContent = '$ ' + val;
+  t.appendChild(div);
+  if (val === 'run') handleRun();
+  else if (val === 'step') handleStep();
+  else if (val === 'reset') handleReset();
+  else if (val === 'help') {
+    ['run   — 執行整個程式', 'step  — 單步執行一條指令', 'reset — 重置 VM', 'asm   — 切換到反組譯視圖'].forEach(msg => {
+      const d = document.createElement('div'); d.className = 'line-info'; d.textContent = msg; t.appendChild(d);
+    });
+    t.scrollTop = t.scrollHeight;
+  } else if (val === 'asm') switchTab('asm');
+  else { const d = document.createElement('div'); d.className = 'line-err'; d.textContent = `unknown command: ${val}`; t.appendChild(d); t.scrollTop = t.scrollHeight; }
+}
+
+resetVM();
+</script>

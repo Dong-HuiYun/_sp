@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>C0 視覺化電腦架構教學平台</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --panel: #ffffff; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); display: flex; flex-direction: column; height: 100vh; margin: 0; }
+        header { background: var(--primary); color: white; padding: 1rem; text-align: center; font-size: 1.5rem; font-weight: bold; }
+        main { display: grid; grid-template-columns: 350px 1fr 300px; gap: 1rem; padding: 1rem; flex: 1; overflow: hidden; }
+        .panel { background: var(--panel); border-radius: 8px; border: 1px solid #ddd; display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { background: #eee; padding: 0.5rem; font-weight: bold; border-bottom: 1px solid #ddd; }
+        textarea { flex: 1; border: none; padding: 1rem; font-family: monospace; font-size: 1rem; outline: none; resize: none; }
+        .memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 10px; overflow-y: auto; }
+        .mem-cell { border: 1px solid #eee; padding: 5px; text-align: center; font-size: 0.8rem; border-radius: 4px; }
+        .mem-cell.active { background: #fef08a; border-color: #eab308; }
+        .registers { padding: 10px; }
+        .reg-item { display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #f0f0f0; font-family: monospace; }
+        .controls { padding: 1rem; display: flex; gap: 10px; background: white; border-top: 1px solid #ddd; justify-content: center; }
+        button { padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px; border: none; background: var(--primary); color: white; }
+        button:disabled { background: #ccc; }
+        .log { height: 100px; background: #1e293b; color: #34d399; padding: 10px; font-family: monospace; font-size: 0.9rem; overflow-y: auto; }
+        .highlight-pc { background: #dbeafe; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<header>C0 Computer Visualizer</header>
+
+<main>
+    <!-- 左側：程式碼編輯器 -->
+    <div class="panel">
+        <div class="panel-header">Assembly Code (C0)</div>
+        <textarea id="code">LDI R1 10
+LDI R2 0
+loop:
+ADD R2 R1
+SUBI R1 1
+BNZ R1 loop
+HALT</textarea>
+    </div>
+
+    <!-- 中間：暫存器與執行狀態 -->
+    <div class="panel">
+        <div class="panel-header">CPU States & ALU</div>
+        <div class="registers" id="reg-container">
+            <!-- 暫存器動態生成 -->
+        </div>
+        <div class="panel-header">Execution Log</div>
+        <div class="log" id="log-output">System Ready.</div>
+    </div>
+
+    <!-- 右側：記憶體 -->
+    <div class="panel">
+        <div class="panel-header">Memory Blocks</div>
+        <div class="memory-grid" id="mem-container">
+            <!-- 記憶體動態生成 -->
+        </div>
+    </div>
+</main>
+
+<div class="controls">
+    <button onclick="assemble()">1. Assemble</button>
+    <button id="step-btn" onclick="stepVM()" disabled>2. Step Execution</button>
+    <button onclick="resetVM()">Reset</button>
+</div>
+
+<script>
+    // 虛擬機狀態
+    let R = new Int32Array(8); // 8 個暫存器
+    let PC = 0;
+    let MEM = new Int32Array(64); // 64 格記憶體
+    let instructions = [];
+    let labels = {};
+
+    function initUI() {
+        const regDiv = document.getElementById('reg-container');
+        regDiv.innerHTML = `<div class="reg-item"><span>PC (Program Counter)</span><span id="pc-val">0</span></div>`;
+        for(let i=0; i<8; i++) {
+            regDiv.innerHTML += `<div class="reg-item"><span>R${i}</span><span id="r${i}-val">0</span></div>`;
+        }
+        
+        const memDiv = document.getElementById('mem-container');
+        memDiv.innerHTML = '';
+        for(let i=0; i<64; i++) {
+            memDiv.innerHTML += `<div class="mem-cell" id="mem-${i}">0</div>`;
+        }
+    }
+
+    function log(msg) {
+        const output = document.getElementById('log-output');
+        output.innerHTML += `<div>> ${msg}</div>`;
+        output.scrollTop = output.scrollHeight;
+    }
+
+    function assemble() {
+        const rawCode = document.getElementById('code').value.split('\n');
+        instructions = [];
+        labels = {};
+        let currentPos = 0;
+
+        // 第一遍：掃描 Labels
+        rawCode.forEach(line => {
+            line = line.trim();
+            if(!line || line.startsWith(';')) return;
+            if(line.endsWith(':')) {
+                labels[line.replace(':', '')] = currentPos;
+            } else {
+                instructions.push(line);
+                currentPos++;
+            }
+        });
+
+        resetVM();
+        document.getElementById('step-btn').disabled = false;
+        log("Assembled successfully. Total " + instructions.length + " instructions.");
+    }
+
+    function resetVM() {
+        R.fill(0);
+        PC = 0;
+        document.getElementById('step-btn').disabled = true;
+        updateUI();
+        log("VM Reset.");
+    }
+
+    function updateUI() {
+        document.getElementById('pc-val').innerText = PC;
+        for(let i=0; i<8; i++) document.getElementById(`r${i}-val`).innerText = R[i];
+        
+        // 高亮當前記憶體（模擬 PC 指向）
+        document.querySelectorAll('.mem-cell').forEach(c => c.classList.remove('active'));
+        if(PC < 64) document.getElementById(`mem-${PC}`).classList.add('active');
+    }
+
+    function stepVM() {
+        if(PC >= instructions.length) {
+            log("End of program.");
+            return;
+        }
+
+        let line = instructions[PC];
+        let parts = line.split(/\s+/);
+        let op = parts[0].toUpperCase();
+        
+        log(`Executing: ${line}`);
+
+        switch(op) {
+            case 'LDI': // LDI R1 10
+                let regIdx = parseInt(parts[1].replace('R',''));
+                R[regIdx] = parseInt(parts[2]);
+                PC++;
+                break;
+            case 'ADD': // ADD R2 R1
+                let dest = parseInt(parts[1].replace('R',''));
+                let src = parseInt(parts[2].replace('R',''));
+                R[dest] += R[src];
+                PC++;
+                break;
+            case 'SUBI': // SUBI R1 1
+                let rSub = parseInt(parts[1].replace('R',''));
+                R[rSub] -= parseInt(parts[2]);
+                PC++;
+                break;
+            case 'BNZ': // BNZ R1 loop
+                let rCheck = parseInt(parts[1].replace('R',''));
+                if(R[rCheck] !== 0) PC = labels[parts[2]];
+                else PC++;
+                break;
+            case 'HALT':
+                log("HALT reached.");
+                document.getElementById('step-btn').disabled = true;
+                break;
+            default:
+                log("Unknown OP: " + op);
+                PC++;
+        }
+        updateUI();
+    }
+
+    initUI();
+</script>
+</body>
+</html>

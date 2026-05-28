@@ -1,0 +1,312 @@
+
+<style>
+.section { margin: 0 0 1.5rem; }
+.section-title { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); letter-spacing: 0.05em; text-transform: uppercase; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.scenario { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 12px 14px; margin-bottom: 8px; }
+.scenario-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
+.badge-purple { background: #EEEDFE; color: #3C3489; }
+.badge-teal   { background: #E1F5EE; color: #085041; }
+.badge-amber  { background: #FAEEDA; color: #633806; }
+.badge-coral  { background: #FAECE7; color: #712B13; }
+.badge-blue   { background: #E6F1FB; color: #0C447C; }
+.badge-green  { background: #EAF3DE; color: #27500A; }
+.cmd-block { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 8px 12px; font-family: var(--font-mono); font-size: 12px; color: var(--color-text-primary); line-height: 1.9; margin: 0 0 6px; }
+.cmd-line { display: flex; align-items: baseline; gap: 0; }
+.prompt { color: var(--color-text-tertiary); user-select: none; margin-right: 6px; flex-shrink: 0; }
+.cmd { color: var(--color-text-primary); }
+.expect { font-size: 12px; color: var(--color-text-secondary); margin: 0; line-height: 1.6; font-style: italic; }
+.two-col { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px; }
+@media (max-width: 520px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+
+<h2 class="sr-only">Mini-OS test guide — commands organized by feature</h2>
+
+<div class="section">
+  <div class="section-title">1 — Basic process lifecycle</div>
+  <div class="scenario">
+    <div class="scenario-title"><span class="badge badge-purple">run / start / ps</span> Create, queue, execute</div>
+    <div class="cmd-block">
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">ls</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run hello</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run calc_add 3</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">ps</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">top</span></div>
+    </div>
+    <p class="expect">ps 顯示 Ready: [PID:1, PID:2]。start 後 hello 印出 999，calc_add 印出 30。top 看到 ctx_sw 和 wait 都有數值。</p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">2 — New instruction set</div>
+  <div class="two-col">
+    <div class="scenario">
+      <div class="scenario-title"><span class="badge badge-teal">count5</span> CMP + JNZ (有終止條件)</div>
+      <div class="cmd-block">
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run count5</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+      </div>
+      <p class="expect">印出 1 2 3 4 5，自動停止（不死循環）。</p>
+    </div>
+    <div class="scenario">
+      <div class="scenario-title"><span class="badge badge-teal">factorial</span> MUL + SUB</div>
+      <div class="cmd-block">
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run factorial</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+      </div>
+      <p class="expect">印出 120（5! = 120）。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">3 — Scheduler algorithms</div>
+  <div class="scenario">
+    <div class="scenario-title"><span class="badge badge-blue">PRIORITY</span> 高優先權先執行</div>
+    <div class="cmd-block">
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sched PRIORITY</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run hello 1</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run count5 5</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run factorial 3</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+    </div>
+    <p class="expect">順序：count5（Pri:5）→ factorial（Pri:3）→ hello（Pri:1）。</p>
+  </div>
+  <div class="two-col">
+    <div class="scenario">
+      <div class="scenario-title"><span class="badge badge-blue">SJF</span> 最短工作優先</div>
+      <div class="cmd-block">
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sched SJF</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run factorial</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run hello</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run count5</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+      </div>
+      <p class="expect">hello(3條) → count5(8條) → factorial(10條)。</p>
+    </div>
+    <div class="scenario">
+      <div class="scenario-title"><span class="badge badge-blue">FIFO</span> 先進先出</div>
+      <div class="cmd-block">
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sched FIFO</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run hello</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run factorial</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run count5</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+      </div>
+      <p class="expect">完全按照 run 的先後順序執行。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">4 — Aging（防 starvation）</div>
+  <div class="scenario">
+    <div class="scenario-title"><span class="badge badge-amber">aging</span> 低優先權自動升級</div>
+    <div class="cmd-block">
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sched PRIORITY</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">aging on</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run count5 10</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run hello 1</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start 1</span></div>
+    </div>
+    <p class="expect">hello 一開始 Pri:1 被排在後面，等一段時間後看到 [Aging] PID 2: priority 1 → 2，top 顯示 pri 欄位有 (+N) 標記。</p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">5 — Memory & page fault</div>
+  <div class="scenario">
+    <div class="scenario-title"><span class="badge badge-green">mem</span> 分頁分配與釋放</div>
+    <div class="cmd-block">
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run count5</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run factorial</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">mem</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">mem</span></div>
+    </div>
+    <p class="expect">start 前 Used:2，執行完後 Used:0（頁框全部釋放）。</p>
+  </div>
+  <div class="scenario">
+    <div class="scenario-title"><span class="badge badge-green">page fault</span> Lazy loading 觸發</div>
+    <div class="cmd-block">
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">load programs/factorial.asm</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">mem</span></div>
+    </div>
+    <p class="expect">執行到第 2 頁時出現 [OS] Page fault: PID 1 vp=1，mem 顯示 Page faults: 1（若程式超過 16 條）。</p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">6 — IPC（行程間通訊）</div>
+  <div class="two-col">
+    <div class="scenario">
+      <div class="scenario-title"><span class="badge badge-coral">正常傳送</span> sender → receiver</div>
+      <div class="cmd-block">
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run ipc_sender</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run ipc_receiver</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+      </div>
+      <p class="expect">兩個都印出 42。</p>
+    </div>
+    <div class="scenario">
+      <div class="scenario-title"><span class="badge badge-coral">WAITING 狀態</span> receiver 先等</div>
+      <div class="cmd-block">
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run ipc_receiver</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run ipc_sender</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start 1</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">ps</span></div>
+      </div>
+      <p class="expect">ps 看到 Waiting: [PID:1]，sender 執行後自動喚醒 receiver。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">7 — Semaphore（互斥鎖）</div>
+  <div class="scenario">
+    <div class="scenario-title"><span class="badge badge-purple">sem</span> mutex 保護 critical section</div>
+    <div class="cmd-block">
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sem create 1 mutex</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run mutex_demo</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run mutex_demo</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sem</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+    </div>
+    <p class="expect">第二個 process 執行 WAIT 時被 block，sem 顯示 value=-1 waiting=[PID:2]，第一個 SIGNAL 後 PID:2 自動喚醒。</p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">8 — Deadlock 偵測</div>
+  <div class="scenario">
+    <div class="scenario-title"><span class="badge badge-amber">deadlock</span> 手動偵測與自動解除</div>
+    <div class="cmd-block">
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sem create 1 A</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sem create 1 B</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">deadlock</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">deadlock resolve</span></div>
+    </div>
+    <p class="expect">deadlock 顯示 No deadlock detected（目前無循環）。若手動把 process 放入互相等待狀態再偵測，會顯示 Cycle: PID:1 → PID:2 → PID:1。</p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">9 — Assembler（.asm 載入器）</div>
+  <div class="scenario">
+    <div class="scenario-title"><span class="badge badge-green">load / lsasm / disasm</span></div>
+    <div class="cmd-block">
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">lsasm</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">load programs/count5.asm 2</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">load programs/factorial.asm 1</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">disasm count5</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sched PRIORITY</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+    </div>
+    <p class="expect">lsasm 列出 programs/ 目錄的 .asm 檔，load 後 count5 因 Pri:2 先執行，印 1–5，再執行 factorial 印 120。disasm 顯示反組譯結果。</p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">10 — History（指令歷史）</div>
+  <div class="scenario">
+    <div class="scenario-title"><span class="badge badge-teal">history / !n</span> 查看與重執行</div>
+    <div class="cmd-block">
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run hello</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run count5</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">history</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">!1</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">ps</span></div>
+    </div>
+    <p class="expect">history 列出編號。!1 重新執行 run hello，ps 會多一個 PID。</p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">11 — kill / reset</div>
+  <div class="two-col">
+    <div class="scenario">
+      <div class="scenario-title"><span class="badge badge-coral">kill</span> 終止 READY 中的行程</div>
+      <div class="cmd-block">
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run count5</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run factorial</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">kill 2</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">ps</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+      </div>
+      <p class="expect">kill 後 ps 只剩 PID:1，只有 count5 執行。</p>
+    </div>
+    <div class="scenario">
+      <div class="scenario-title"><span class="badge badge-coral">kill</span> 終止 WAITING 行程</div>
+      <div class="cmd-block">
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run ipc_receiver</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start</span></div>
+        <div class="cmd-line"><span class="prompt">$</span><span class="cmd">kill 1</span></div>
+      </div>
+      <p class="expect">顯示 Process 1 killed (was waiting)。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">12 — TUI 即時儀表板</div>
+  <div class="scenario">
+    <div class="scenario-title"><span class="badge badge-blue">tui</span> 四格即時畫面</div>
+    <div class="cmd-block">
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sem create 1 mutex</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run mutex_demo</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run ipc_sender</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run ipc_receiver</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start 1</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">tui</span></div>
+    </div>
+    <p class="expect">開啟全螢幕儀表板，同時看到 process 狀態、記憶體分頁、semaphore value、IPC 收件匣，每 0.5 秒刷新。按 q 離開。</p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">一鍵全功能測試（複製貼入）</div>
+  <div class="scenario">
+    <div class="cmd-block" style="line-height:2">
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">ls</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sched PRIORITY</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">aging on</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sem create 1 mutex</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run count5 3</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run factorial 1</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run ipc_sender 2</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run ipc_receiver 2</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run mutex_demo 2</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">ps</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">mem</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sem</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start 2</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">top</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">mem</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">history</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">lsasm</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">load programs/count5.asm</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">disasm factorial</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">deadlock</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+      <div class="cmd-line"><span class="prompt">$</span><span class="cmd">exit</span></div>
+    </div>
+  </div>
+</div>

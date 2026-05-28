@@ -1,0 +1,14 @@
+# 1. 建立檔案
+# 將 ThreadPool 程式碼存為 ThreadPool.hpp
+# 將 Server 程式碼存為 main.cpp
+
+# 2. 編譯指令 (需連結 pthread 函式庫)
+g++ -std=c++11 -O3 main.cpp -o webserver -lpthread
+
+# 3. 執行
+./webserver
+
+# 4. 測試
+# 開啟瀏覽器輸入 http://localhost:8080
+# 或使用 curl 測試：
+curl -i http://localhost:8080

@@ -116,7 +116,7 @@ void factor(char *res) {
                 emit("PARAM", arg, "-", "-"); count++; 
                 if (cur_token.type == TK_COMMA) next_token();
             }
-            next_token(); new_t(res); char c_str[10]; sprintf(c_str, "%d", count);
+            next_token(); new_t(res); char c_str[16]; sprintf(c_str, "%d", count);
             emit("CALL", name, c_str, res); 
         } else strcpy(res, name);
     } else if (cur_token.type == TK_LPAREN) {

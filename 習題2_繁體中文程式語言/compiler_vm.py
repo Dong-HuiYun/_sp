@@ -1,729 +1,704 @@
 """
-繁體中文程式語言 - Compiler (編譯器) 與 Stack-based VM (堆疊虛擬機)
+繁體中文程式語言 v3 - Compiler + Stack VM
 ====================================================================
 
-Bytecode 指令集
-===============
-  PUSH_INT  <int>     — 將整數常數推入堆疊
-  PUSH_STR  <str>     — 將字串常數推入堆疊
-  LOAD      <name>    — 將變數值推入堆疊
-  STORE     <name>    — 從堆疊頂端彈出並存入變數
-  DECLARE   <name> <type>  — 宣告新變數（型態檢查用）
-  ADD                 — 彈出兩個值，推入相加結果
-  SUB                 — 彈出兩個值，推入相減結果
-  MUL                 — 彈出兩個值，推入相乘結果
-  DIV                 — 彈出兩個值，推入相除結果
-  NEG                 — 彈出一個值，推入其負值
-  EQ / NEQ            — 等於 / 不等於比較
-  GT / LT / GTE / LTE — 大於 / 小於 / 大於等於 / 小於等於
-  AND / OR / NOT      — 邏輯運算
-  JUMP      <addr>    — 無條件跳轉到指定位址
-  JUMP_IF_FALSE <addr>— 若堆疊頂端為 False 則跳轉
-  PRINT               — 彈出堆疊頂端並輸出
-  HALT                — 程式結束
+新增 Bytecode 指令
+==================
+  MOD                      — 餘數 %
+  POW                      — 次方 **
+  INPUT       <varname>    — 從 stdin 讀入字串，存入變數
+  CALL        <name,argc>  — 呼叫函數（argc 個引數已在堆疊上）
+  RETURN                   — 從函數回傳（堆疊頂端為回傳值）
+  APPEND      <name>       — 彈出值，append 到 vars[name]
+  POP_LIST    <name>       — pop vars[name]，若有 dest 則存入 dest
+  LIST_LEN               — 彈出列表，推入其長度
+  BREAK_LOOP               — 跳出迴圈（特殊跳轉標記）
+  CONTINUE_LOOP            — 繼續迴圈（特殊跳轉標記）
+  TRY_BEGIN   <handler>   — 設定錯誤處理點
+  TRY_END                  — 清除錯誤處理點
+  IMPORT      <name>       — 引入模組（執行另一個 .中文 檔）
 """
-
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-from enum import Enum, auto
+import os, sys
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+from enum import Enum
 
-# ── 從 lexer_parser 引入所有 AST 定義 ────────────────────────
 from lexer_parser import (
-    Lexer, Parser,
+    Lexer, Parser, pretty_print_ast,
     Program, DeclareStmt, AssignStmt, IndexAssignStmt,
-    PrintStmt, IfStmt, WhileStmt,
-    BinOp, UnaryOp, IntLiteral, StrLiteral, ListLiteral, IndexExpr, Identifier,
-    ASTNode, pretty_print_ast,
+    PrintStmt, AskStmt, IfStmt, WhileStmt, ForStmt,
+    ReturnStmt, BreakStmt, ContinueStmt,
+    AppendStmt, PopStmt, TryStmt, FuncDefStmt, ImportStmt,
+    BinOp, UnaryOp, IntLiteral, StrLiteral, ListLiteral,
+    IndexExpr, Identifier, CallExpr, BuiltinCall, ASTNode,
 )
 
 
 # ============================================================
-# Bytecode 指令定義
+# Op 指令集
 # ============================================================
 
 class Op(Enum):
-    PUSH_INT        = "PUSH_INT"
-    PUSH_STR        = "PUSH_STR"
-    LOAD            = "LOAD"
-    STORE           = "STORE"
-    DECLARE         = "DECLARE"
-    ADD             = "ADD"
-    SUB             = "SUB"
-    MUL             = "MUL"
-    DIV             = "DIV"
-    NEG             = "NEG"
-    EQ              = "EQ"
-    NEQ             = "NEQ"
-    GT              = "GT"
-    LT              = "LT"
-    GTE             = "GTE"
-    LTE             = "LTE"
-    AND             = "AND"
-    OR              = "OR"
-    NOT             = "NOT"
-    BUILD_LIST      = "BUILD_LIST"
-    LOAD_INDEX      = "LOAD_INDEX"
-    STORE_INDEX     = "STORE_INDEX"
-    JUMP            = "JUMP"
-    JUMP_IF_FALSE   = "JUMP_IF_FALSE"
-    PRINT           = "PRINT"
-    HALT            = "HALT"
+    PUSH_INT      = "PUSH_INT"
+    PUSH_STR      = "PUSH_STR"
+    LOAD          = "LOAD"
+    STORE         = "STORE"
+    DECLARE       = "DECLARE"
+    BUILD_LIST    = "BUILD_LIST"
+    LOAD_INDEX    = "LOAD_INDEX"
+    STORE_INDEX   = "STORE_INDEX"
+    APPEND        = "APPEND"
+    POP_LIST      = "POP_LIST"
+    LIST_LEN      = "LIST_LEN"
+    ADD           = "ADD"
+    SUB           = "SUB"
+    MUL           = "MUL"
+    DIV           = "DIV"
+    MOD           = "MOD"
+    POW           = "POW"
+    NEG           = "NEG"
+    EQ  = "EQ";  NEQ = "NEQ"
+    GT  = "GT";  LT  = "LT"
+    GTE = "GTE"; LTE = "LTE"
+    AND = "AND"; OR  = "OR"; NOT = "NOT"
+    JUMP          = "JUMP"
+    JUMP_IF_FALSE = "JUMP_IF_FALSE"
+    PRINT         = "PRINT"
+    INPUT         = "INPUT"
+    CALL          = "CALL"
+    RETURN        = "RETURN"
+    TRY_BEGIN     = "TRY_BEGIN"
+    TRY_END       = "TRY_END"
+    IMPORT        = "IMPORT"
+    HALT          = "HALT"
 
 
 @dataclass
 class Instruction:
-    op: Op
-    arg: Any = None          # 可選參數（常數值、變數名稱、跳轉位址）
-    source_line: int = 0     # 對應原始碼行號（Debug 用）
-
+    op: Op; arg: Any = None; source_line: int = 0
     def __repr__(self):
-        if self.arg is not None:
-            return f"{self.op.value:<18} {self.arg!r}"
-        return self.op.value
+        return f"{self.op.value:<18} {self.arg!r}" if self.arg is not None else self.op.value
 
 
 # 型態常數
-TYPE_INT      = 'int'
-TYPE_STR      = 'str'
-TYPE_BOOL     = 'bool'      # 條件運算的內部型態
-TYPE_INT_LIST = 'int_list'  # 整數列表
-TYPE_STR_LIST = 'str_list'  # 字串列表
-TYPE_LIST     = 'list'      # 不限元素型態（IndexExpr 回傳時用）
+T_INT  = 'int';  T_STR  = 'str';  T_BOOL = 'bool'
+T_ILIST = 'int_list'; T_SLIST = 'str_list'; T_ANY = 'any'
 
 
 # ============================================================
-# 編譯錯誤
+# 錯誤
 # ============================================================
 
 class CompileError(Exception):
-    def __init__(self, msg: str, line: int = 0):
+    def __init__(self, msg, line=0):
         super().__init__(f"[編譯錯誤] 第{line}行：{msg}" if line else f"[編譯錯誤] {msg}")
-        self.line = line
+
+class ZhRuntimeError(Exception):
+    def __init__(self, msg, pc=0):
+        super().__init__(f"[執行錯誤] 指令#{pc}：{msg}")
+
+# 流程控制信號（不是真正的錯誤）
+class _ReturnSignal(Exception):
+    def __init__(self, value): self.value = value
+class _BreakSignal(Exception): pass
+class _ContinueSignal(Exception): pass
 
 
 # ============================================================
-# COMPILER 編譯器
+# COMPILER
 # ============================================================
 
 class Compiler:
-    """
-    將 AST 編譯成 Bytecode 指令列表。
-
-    型態系統：
-    - 每個變數宣告時記錄其型態
-    - 賦值時檢查右側型態是否相符
-    - 算術運算只允許整數
-    - 字串加法（加）允許兩個字串串接
-    - 比較運算回傳 bool（供 JUMP_IF_FALSE 使用）
-
-    跳轉位址修補（Backpatching）：
-    - 編譯 if/while 時，先插入帶有 -1 佔位的 JUMP_IF_FALSE
-    - 等待後面的區塊編譯完成後，回頭填入正確位址
-    """
-
-    def __init__(self):
+    def __init__(self, func_table: Optional[Dict] = None):
         self.code: List[Instruction] = []
-        # 變數型態表：name -> 'int' | 'str'
         self.var_types: Dict[str, str] = {}
+        # 函數表：name → (params, body)  — 供 infer_type 的函數呼叫型態推導
+        self.func_table: Dict = func_table or {}
 
-    # ── 輔助方法 ──────────────────────────────────────────
+    def emit(self, op, arg=None, line=0):
+        self.code.append(Instruction(op, arg, line)); return len(self.code)-1
 
-    def emit(self, op: Op, arg=None, line: int = 0) -> int:
-        """發出一條指令，回傳其在 code 中的索引"""
-        self.code.append(Instruction(op, arg, line))
-        return len(self.code) - 1
+    def current_addr(self): return len(self.code)
 
-    def current_addr(self) -> int:
-        """回傳下一條指令的位址"""
-        return len(self.code)
+    def patch(self, idx, addr): self.code[idx].arg = addr
 
-    def patch(self, idx: int, addr: int):
-        """修補指定位置的跳轉目標位址"""
-        self.code[idx].arg = addr
+    # ── 型態推導 ─────────────────────────────────────────────
 
-    # ── 型態推導 ──────────────────────────────────────────
-
-    def infer_type(self, node: ASTNode) -> str:
-        """靜態推導表達式的型態，回傳 'int'|'str'|'bool'|'int_list'|'str_list'"""
-        if isinstance(node, IntLiteral):
-            return TYPE_INT
-        elif isinstance(node, StrLiteral):
-            return TYPE_STR
-        elif isinstance(node, Identifier):
+    def infer(self, node) -> str:
+        if isinstance(node, IntLiteral): return T_INT
+        if isinstance(node, StrLiteral): return T_STR
+        if isinstance(node, ListLiteral):
+            if not node.elements: return T_ILIST
+            et = self.infer(node.elements[0])
+            return T_ILIST if et == T_INT else T_SLIST
+        if isinstance(node, Identifier):
             if node.name not in self.var_types:
-                raise CompileError(f"使用了未宣告的變數「{node.name}」", node.line)
+                raise CompileError(f"未宣告的變數「{node.name}」", node.line)
             return self.var_types[node.name]
-        elif isinstance(node, ListLiteral):
-            # 推導列表元素型態（空列表暫給 int_list）
-            if not node.elements:
-                return TYPE_INT_LIST
-            elem_t = self.infer_type(node.elements[0])
-            for el in node.elements[1:]:
-                if self.infer_type(el) != elem_t:
-                    raise CompileError("列表元素型態必須一致", node.line)
-            return TYPE_INT_LIST if elem_t == TYPE_INT else TYPE_STR_LIST
-        elif isinstance(node, IndexExpr):
-            # 索引存取：回傳列表的元素型態
-            target_t = self.infer_type(node.target)
-            if target_t == TYPE_INT_LIST:
-                return TYPE_INT
-            elif target_t == TYPE_STR_LIST:
-                return TYPE_STR
-            else:
-                raise CompileError(f"「{node.target}」不是列表，無法索引", node.line)
-        elif isinstance(node, UnaryOp):
-            if node.op == 'neg':
-                t = self.infer_type(node.operand)
-                if t != TYPE_INT:
-                    raise CompileError("「負」只能用於整數", node.line)
-                return TYPE_INT
-            elif node.op == 'not':
-                return TYPE_BOOL
-        elif isinstance(node, BinOp):
-            if node.op in ('+', '-', '*', '/'):
-                lt = self.infer_type(node.left)
-                rt = self.infer_type(node.right)
-                if node.op == '+' and lt == TYPE_STR and rt == TYPE_STR:
-                    return TYPE_STR   # 允許字串串接
-                if lt != TYPE_INT or rt != TYPE_INT:
-                    raise CompileError(
-                        f"算術運算「{node.op}」兩側必須是整數，"
-                        f"但得到 {lt} 和 {rt}", node.line)
-                return TYPE_INT
-            elif node.op in ('==', '!=', '>', '<', '>=', '<='):
-                lt = self.infer_type(node.left)
-                rt = self.infer_type(node.right)
-                if lt != rt:
-                    raise CompileError(
-                        f"比較運算兩側型態不符：{lt} vs {rt}", node.line)
-                return TYPE_BOOL
-            elif node.op in ('&&', '||'):
-                return TYPE_BOOL
-        return TYPE_INT  # fallback
+        if isinstance(node, IndexExpr):
+            tt = self.infer(node.target)
+            return T_INT if tt == T_ILIST else (T_STR if tt == T_SLIST else T_ANY)
+        if isinstance(node, UnaryOp):
+            return T_INT if node.op == 'neg' else T_BOOL
+        if isinstance(node, BinOp):
+            if node.op in ('+','-','*','/','%','**'):
+                lt, rt = self.infer(node.left), self.infer(node.right)
+                if node.op == '+' and lt == T_STR and rt == T_STR: return T_STR
+                return T_INT
+            return T_BOOL
+        if isinstance(node, BuiltinCall):
+            if node.func == '長度': return T_INT
+        if isinstance(node, CallExpr): return T_ANY  # 函數回傳型態不做靜態推導
+        return T_ANY
 
-    # ── 編譯入口 ──────────────────────────────────────────
+    # ── 編譯入口 ─────────────────────────────────────────────
 
-    def compile(self, program: Program) -> List[Instruction]:
+    def compile(self, program: Program):
+        # 先掃描所有函數定義，登記到 func_table
+        for stmt in program.statements:
+            if isinstance(stmt, FuncDefStmt):
+                self.func_table[stmt.name] = stmt
         for stmt in program.statements:
             self.compile_stmt(stmt)
         self.emit(Op.HALT)
         return self.code
 
-    # ── 語句編譯 ──────────────────────────────────────────
+    # ── 語句編譯 ─────────────────────────────────────────────
 
-    def compile_stmt(self, node: ASTNode):
-        if isinstance(node, DeclareStmt):
-            self.compile_declare(node)
-        elif isinstance(node, AssignStmt):
-            self.compile_assign(node)
-        elif isinstance(node, IndexAssignStmt):
-            self.compile_index_assign(node)
+    def compile_stmt(self, node):
+        if   isinstance(node, FuncDefStmt):      self.compile_funcdef(node)
+        elif isinstance(node, ImportStmt):        self.emit(Op.IMPORT, node.module, node.line)
+        elif isinstance(node, DeclareStmt):       self.compile_declare(node)
+        elif isinstance(node, AssignStmt):        self.compile_assign(node)
+        elif isinstance(node, IndexAssignStmt):   self.compile_index_assign(node)
         elif isinstance(node, PrintStmt):
-            self.compile_print(node)
-        elif isinstance(node, IfStmt):
-            self.compile_if(node)
-        elif isinstance(node, WhileStmt):
-            self.compile_while(node)
+            self.compile_expr(node.expr)
+            self.emit(Op.PRINT, None, node.line)
+        elif isinstance(node, AskStmt):
+            # 自動宣告接收變數（字串型態）
+            if node.varname not in self.var_types:
+                self.var_types[node.varname] = T_STR
+            self.emit(Op.INPUT, (node.prompt, node.varname), node.line)
+        elif isinstance(node, IfStmt):            self.compile_if(node)
+        elif isinstance(node, WhileStmt):         self.compile_while(node)
+        elif isinstance(node, ForStmt):           self.compile_for(node)
+        elif isinstance(node, ReturnStmt):
+            self.compile_expr(node.expr); self.emit(Op.RETURN, None, node.line)
+        elif isinstance(node, BreakStmt):
+            self.emit(Op.JUMP, '__break__', node.line)   # placeholder
+        elif isinstance(node, ContinueStmt):
+            self.emit(Op.JUMP, '__continue__', node.line)
+        elif isinstance(node, AppendStmt):        self.compile_append(node)
+        elif isinstance(node, PopStmt):           self.compile_pop(node)
+        elif isinstance(node, TryStmt):           self.compile_try(node)
         else:
-            raise CompileError(f"未知的語句節點：{type(node).__name__}")
+            raise CompileError(f"未知語句：{type(node).__name__}")
+
+    # ── 函數定義 ─────────────────────────────────────────────
+
+    def compile_funcdef(self, node: FuncDefStmt):
+        """
+        編譯函數定義。函數體編譯成獨立的 Bytecode，以 CALL 指令呼叫時由 VM 執行。
+        在主程式碼流程中插入 JUMP 跳過函數體。
+
+        佈局：
+          JUMP  func_end      ← 跳過函數體
+        func_start:
+          ... 函數體 bytecode ...
+          RETURN              ← 隱式 return（若無明確 return）
+        func_end:
+        """
+        jmp_idx = self.emit(Op.JUMP, -1, node.line)
+        func_start = self.current_addr()
+
+        # 建立子編譯器（繼承 func_table，但獨立的 var_types）
+        sub = Compiler(func_table=self.func_table)
+        # 參數預設型態為 any（執行期決定）
+        for p in node.params:
+            sub.var_types[p] = T_ANY
+        for stmt in node.body:
+            sub.compile_stmt(stmt)
+        sub.emit(Op.PUSH_INT, 0)  # 隱式 return 0
+        sub.emit(Op.RETURN)
+
+        # 把子編譯器的 code 移植到主 code，修正位址偏移
+        offset = len(self.code)
+        for instr in sub.code:
+            new_instr = Instruction(instr.op, instr.arg, instr.source_line)
+            # 修正跳轉位址
+            if instr.op in (Op.JUMP, Op.JUMP_IF_FALSE, Op.TRY_BEGIN) and isinstance(instr.arg, int):
+                new_instr.arg = instr.arg + offset
+            self.code.append(new_instr)
+
+        func_end = self.current_addr()
+        self.patch(jmp_idx, func_end)
+
+        # 記錄函數資訊：(起始位址, 參數列表)
+        self.func_table[node.name] = ('compiled', func_start, node.params)
+
+    # ── 宣告 / 賦值 ──────────────────────────────────────────
 
     def compile_declare(self, node: DeclareStmt):
-        """
-        令 X 為 整數 等於 expr。         →  DECLARE X int  / STORE X
-        令 X 為 整數列表 等於 ［...］。  →  BUILD_LIST n  / DECLARE X int_list / STORE X
-        """
-        ann = node.type_annotation   # 'int' | 'str' | 'int_list' | 'str_list'
-        type_map = {
-            'int':      TYPE_INT,
-            'str':      TYPE_STR,
-            'int_list': TYPE_INT_LIST,
-            'str_list': TYPE_STR_LIST,
-        }
-        if ann not in type_map:
-            raise CompileError(f"未知型態標注：{ann}", node.line)
-        expected = type_map[ann]
-
-        expr_type = self.infer_type(node.expr)
-        # 允許 bool 直接賦給 int（條件運算結果）
-        if expr_type == TYPE_BOOL and expected == TYPE_INT:
-            pass
-        elif expr_type != expected:
-            raise CompileError(
-                f"變數「{node.name}」宣告為 {ann}，"
-                f"但初始值型態為 {expr_type}", node.line)
+        ann = node.type_annotation
+        type_map = {'int':T_INT,'str':T_STR,'int_list':T_ILIST,'str_list':T_SLIST}
+        expected = type_map.get(ann, T_ANY)
         if node.name in self.var_types:
-            raise CompileError(f"變數「{node.name}」已經宣告過了", node.line)
+            # 已宣告：退化為賦值（允許重複使用同名變數）
+            self.compile_expr(node.expr)
+            self.emit(Op.STORE, node.name, node.line)
+            return
         self.var_types[node.name] = expected
         self.compile_expr(node.expr)
         self.emit(Op.DECLARE, (node.name, ann), node.line)
         self.emit(Op.STORE, node.name, node.line)
 
     def compile_assign(self, node: AssignStmt):
-        """
-        令 X 等於 expr。
-        →  compile(expr)
-           STORE  X
-        """
         if node.name not in self.var_types:
             raise CompileError(f"賦值給未宣告的變數「{node.name}」", node.line)
-        expr_type = self.infer_type(node.expr)
-        expected = self.var_types[node.name]
-        # bool 可賦給 int（條件運算結果），列表間同型態可互賦
-        if expr_type != expected and not (expr_type == TYPE_BOOL and expected == TYPE_INT):
-            raise CompileError(
-                f"變數「{node.name}」是 {expected}，"
-                f"但賦值型態為 {expr_type}", node.line)
         self.compile_expr(node.expr)
         self.emit(Op.STORE, node.name, node.line)
 
     def compile_index_assign(self, node: IndexAssignStmt):
-        """
-        令 X［idx］ 等於 expr。
-        →  compile(idx)
-           compile(expr)
-           STORE_INDEX  X
-
-        堆疊執行順序（STORE_INDEX 取出時）：
-          先 pop → value，後 pop → index
-          然後 vars[X][index] = value
-        """
         if node.name not in self.var_types:
             raise CompileError(f"索引賦值給未宣告的變數「{node.name}」", node.line)
-        var_t = self.var_types[node.name]
-        if var_t not in (TYPE_INT_LIST, TYPE_STR_LIST):
-            raise CompileError(f"變數「{node.name}」不是列表，無法索引賦值", node.line)
-        # 索引必須是整數
-        idx_t = self.infer_type(node.index)
-        if idx_t != TYPE_INT:
-            raise CompileError("列表索引必須是整數", node.line)
-        # 元素值型態
-        elem_expected = TYPE_INT if var_t == TYPE_INT_LIST else TYPE_STR
-        val_t = self.infer_type(node.expr)
-        if val_t != elem_expected and not (val_t == TYPE_BOOL and elem_expected == TYPE_INT):
-            raise CompileError(
-                f"列表「{node.name}」的元素是 {elem_expected}，"
-                f"但賦值型態為 {val_t}", node.line)
-        self.compile_expr(node.index)   # 先推索引
-        self.compile_expr(node.expr)    # 再推值
+        self.compile_expr(node.index)
+        self.compile_expr(node.expr)
         self.emit(Op.STORE_INDEX, node.name, node.line)
 
-    def compile_print(self, node: PrintStmt):
-        """
-        顯示 expr。
-        →  compile(expr)
-           PRINT
-        """
-        self.compile_expr(node.expr)
-        self.emit(Op.PRINT, None, node.line)
+    # ── if / while / for ─────────────────────────────────────
 
     def compile_if(self, node: IfStmt):
-        """
-        如果（cond）則：then_block。完 [否則：else_block。完]
-
-        有 else：
-          compile(cond)
-          JUMP_IF_FALSE  else_start    ← 修補
-          compile(then_block)
-          JUMP           end           ← 修補
-        else_start:
-          compile(else_block)
-        end:
-
-        無 else：
-          compile(cond)
-          JUMP_IF_FALSE  end           ← 修補
-          compile(then_block)
-        end:
-        """
         self.compile_expr(node.condition)
-        jif_idx = self.emit(Op.JUMP_IF_FALSE, -1, node.line)  # 佔位
-
-        # then 區塊
-        for stmt in node.then_block:
-            self.compile_stmt(stmt)
-
+        jif = self.emit(Op.JUMP_IF_FALSE, -1, node.line)
+        for s in node.then_block: self.compile_stmt(s)
         if node.else_block:
-            jmp_idx = self.emit(Op.JUMP, -1, node.line)       # 佔位
-            else_start = self.current_addr()
-            self.patch(jif_idx, else_start)
-
-            for stmt in node.else_block:
-                self.compile_stmt(stmt)
-
-            end_addr = self.current_addr()
-            self.patch(jmp_idx, end_addr)
+            jmp = self.emit(Op.JUMP, -1, node.line)
+            self.patch(jif, self.current_addr())
+            for s in node.else_block: self.compile_stmt(s)
+            self.patch(jmp, self.current_addr())
         else:
-            end_addr = self.current_addr()
-            self.patch(jif_idx, end_addr)
+            self.patch(jif, self.current_addr())
 
     def compile_while(self, node: WhileStmt):
-        """
-        當（cond）就：body。完
-
-          loop_start:
-            compile(cond)
-            JUMP_IF_FALSE  loop_end    ← 修補
-            compile(body)
-            JUMP           loop_start
-          loop_end:
-        """
         loop_start = self.current_addr()
         self.compile_expr(node.condition)
-        jif_idx = self.emit(Op.JUMP_IF_FALSE, -1, node.line)  # 佔位
-
-        for stmt in node.body:
-            self.compile_stmt(stmt)
-
+        jif = self.emit(Op.JUMP_IF_FALSE, -1, node.line)
+        body_start = len(self.code)
+        for s in node.body: self.compile_stmt(s)
         self.emit(Op.JUMP, loop_start, node.line)
         loop_end = self.current_addr()
-        self.patch(jif_idx, loop_end)
+        self.patch(jif, loop_end)
+        # 修補 break / continue
+        self._patch_loop_controls(body_start, len(self.code)-1, loop_end, loop_start)
 
-    # ── 表達式編譯 ────────────────────────────────────────
+    def compile_for(self, node: ForStmt):
+        """
+        從 start 到 end 以 var 做：body
 
-    def compile_expr(self, node: ASTNode):
+        編譯成：
+          DECLARE var int (若未宣告)
+          compile(start) → STORE var
+          loop_start:
+            LOAD var <= compile(end) → JUMP_IF_FALSE loop_end
+            body
+            LOAD var + 1 → STORE var
+            JUMP loop_start
+          loop_end:
+        """
+        ln = node.line
+        # 宣告或使用循環變數
+        if node.varname not in self.var_types:
+            self.var_types[node.varname] = T_INT
+            self.compile_expr(node.start)
+            self.emit(Op.DECLARE, (node.varname, 'int'), ln)
+            self.emit(Op.STORE, node.varname, ln)
+        else:
+            self.compile_expr(node.start)
+            self.emit(Op.STORE, node.varname, ln)
+
+        loop_start = self.current_addr()
+        # 條件：var <= end
+        self.emit(Op.LOAD, node.varname, ln)
+        self.compile_expr(node.end)
+        self.emit(Op.LTE, None, ln)
+        jif = self.emit(Op.JUMP_IF_FALSE, -1, ln)
+
+        body_start = len(self.code)
+        for s in node.body: self.compile_stmt(s)
+        continue_addr = self.current_addr()
+        # var = var + 1
+        self.emit(Op.LOAD, node.varname, ln)
+        self.emit(Op.PUSH_INT, 1, ln)
+        self.emit(Op.ADD, None, ln)
+        self.emit(Op.STORE, node.varname, ln)
+        self.emit(Op.JUMP, loop_start, ln)
+
+        loop_end = self.current_addr()
+        self.patch(jif, loop_end)
+        self._patch_loop_controls(body_start, continue_addr-1, loop_end, continue_addr)
+
+    def _patch_loop_controls(self, start, end, break_addr, continue_addr):
+        """將範圍內的 break/continue 佔位修補為實際位址"""
+        for i in range(start, min(end+1, len(self.code))):
+            instr = self.code[i]
+            if instr.op == Op.JUMP:
+                if instr.arg == '__break__':    instr.arg = break_addr
+                elif instr.arg == '__continue__': instr.arg = continue_addr
+
+    # ── append / pop ─────────────────────────────────────────
+
+    def compile_append(self, node: AppendStmt):
+        if node.listname not in self.var_types:
+            raise CompileError(f"未宣告的列表「{node.listname}」", node.line)
+        self.compile_expr(node.expr)
+        self.emit(Op.APPEND, node.listname, node.line)
+
+    def compile_pop(self, node: PopStmt):
+        if node.listname not in self.var_types:
+            raise CompileError(f"未宣告的列表「{node.listname}」", node.line)
+        if node.varname and node.varname not in self.var_types:
+            # 自動宣告接收變數
+            self.var_types[node.varname] = T_ANY
+            self.emit(Op.POP_LIST, (node.listname, node.varname), node.line)
+            self.emit(Op.DECLARE, (node.varname, 'any'), node.line)
+        else:
+            self.emit(Op.POP_LIST, (node.listname, node.varname), node.line)
+
+    # ── try / except ─────────────────────────────────────────
+
+    def compile_try(self, node: TryStmt):
+        """
+          TRY_BEGIN handler_addr
+          try_body
+          TRY_END
+          JUMP after
+        handler_addr:
+          except_body
+        after:
+        """
+        try_begin_idx = self.emit(Op.TRY_BEGIN, -1, node.line)
+        for s in node.try_block: self.compile_stmt(s)
+        self.emit(Op.TRY_END)
+        jmp = self.emit(Op.JUMP, -1, node.line)
+        handler_addr = self.current_addr()
+        self.patch(try_begin_idx, handler_addr)
+        for s in node.except_block: self.compile_stmt(s)
+        self.patch(jmp, self.current_addr())
+
+    # ── 表達式 ───────────────────────────────────────────────
+
+    def compile_expr(self, node):
         if isinstance(node, IntLiteral):
             self.emit(Op.PUSH_INT, node.value, node.line)
         elif isinstance(node, StrLiteral):
             self.emit(Op.PUSH_STR, node.value, node.line)
         elif isinstance(node, ListLiteral):
-            # 依序編譯每個元素，再用 BUILD_LIST n 打包
-            for el in node.elements:
-                self.compile_expr(el)
+            for el in node.elements: self.compile_expr(el)
             self.emit(Op.BUILD_LIST, len(node.elements), node.line)
         elif isinstance(node, IndexExpr):
-            # 先 LOAD 整個列表，再推索引，最後 LOAD_INDEX
             self.compile_expr(node.target)
             self.compile_expr(node.index)
             self.emit(Op.LOAD_INDEX, None, node.line)
         elif isinstance(node, Identifier):
             if node.name not in self.var_types:
-                raise CompileError(f"使用了未宣告的變數「{node.name}」", node.line)
+                raise CompileError(f"未宣告的變數「{node.name}」", node.line)
             self.emit(Op.LOAD, node.name, node.line)
+        elif isinstance(node, BuiltinCall):
+            for a in node.args: self.compile_expr(a)
+            if node.func == '長度': self.emit(Op.LIST_LEN, None, node.line)
+        elif isinstance(node, CallExpr):
+            for a in node.args: self.compile_expr(a)
+            self.emit(Op.CALL, (node.name, len(node.args)), node.line)
         elif isinstance(node, UnaryOp):
             self.compile_expr(node.operand)
-            if node.op == 'neg':
-                self.emit(Op.NEG, None, node.line)
-            elif node.op == 'not':
-                self.emit(Op.NOT, None, node.line)
+            self.emit(Op.NEG if node.op=='neg' else Op.NOT, None, node.line)
         elif isinstance(node, BinOp):
             self.compile_binop(node)
         else:
-            raise CompileError(f"未知的表達式節點：{type(node).__name__}")
+            raise CompileError(f"未知表達式：{type(node).__name__}")
 
     def compile_binop(self, node: BinOp):
-        # 短路求值：&& 和 ||
+        # 短路
         if node.op == '&&':
             self.compile_expr(node.left)
-            # 若左側為 False，跳到末端（結果為 False）
-            jif_idx = self.emit(Op.JUMP_IF_FALSE, -1, node.line)
+            jif = self.emit(Op.JUMP_IF_FALSE, -1, node.line)
             self.compile_expr(node.right)
-            end_idx = self.emit(Op.JUMP, -1, node.line)
-            false_addr = self.current_addr()
-            self.patch(jif_idx, false_addr)
-            self.emit(Op.PUSH_INT, 0)   # False
-            end_addr = self.current_addr()
-            self.patch(end_idx, end_addr)
-            return
-
+            jmp = self.emit(Op.JUMP, -1)
+            self.patch(jif, self.current_addr()); self.emit(Op.PUSH_INT, 0)
+            self.patch(jmp, self.current_addr()); return
         if node.op == '||':
             self.compile_expr(node.left)
-            # 若左側為 True，跳到末端（結果為 True）
-            # 先複製頂端，若為 True 跳過右側
-            jit_idx = self.emit(Op.JUMP_IF_FALSE, -1, node.line)
-            self.emit(Op.PUSH_INT, 1)   # True
-            jmp_idx = self.emit(Op.JUMP, -1, node.line)
-            right_addr = self.current_addr()
-            self.patch(jit_idx, right_addr)
+            jif = self.emit(Op.JUMP_IF_FALSE, -1, node.line)
+            self.emit(Op.PUSH_INT, 1)
+            jmp = self.emit(Op.JUMP, -1)
+            self.patch(jif, self.current_addr())
             self.compile_expr(node.right)
-            end_addr = self.current_addr()
-            self.patch(jmp_idx, end_addr)
-            return
-
-        # 一般二元運算：先編譯兩側，再發出指令
+            self.patch(jmp, self.current_addr()); return
         self.compile_expr(node.left)
         self.compile_expr(node.right)
-
-        op_map = {
-            '+':  Op.ADD,
-            '-':  Op.SUB,
-            '*':  Op.MUL,
-            '/':  Op.DIV,
-            '==': Op.EQ,
-            '!=': Op.NEQ,
-            '>':  Op.GT,
-            '<':  Op.LT,
-            '>=': Op.GTE,
-            '<=': Op.LTE,
-        }
+        op_map = {'+':Op.ADD,'-':Op.SUB,'*':Op.MUL,'/':Op.DIV,'%':Op.MOD,'**':Op.POW,
+                  '==':Op.EQ,'!=':Op.NEQ,'>':Op.GT,'<':Op.LT,'>=':Op.GTE,'<=':Op.LTE}
         if node.op not in op_map:
-            raise CompileError(f"未知的二元運算子：{node.op}", node.line)
+            raise CompileError(f"未知運算子：{node.op}")
         self.emit(op_map[node.op], None, node.line)
 
 
 # ============================================================
-# 執行期錯誤
-# ============================================================
-
-class RuntimeError_(Exception):
-    def __init__(self, msg: str, pc: int = 0):
-        super().__init__(f"[執行錯誤] 指令#{pc}：{msg}")
-        self.pc = pc
-
-
-# ============================================================
-# STACK-BASED VM 堆疊虛擬機
+# VM
 # ============================================================
 
 class VM:
-    """
-    堆疊虛擬機：逐條執行 Bytecode 指令。
-
-    狀態：
-    - stack：運算堆疊，存放 int | str | bool
-    - vars：變數字典，存放 { name: value }
-    - var_types：變數型態，存放 { name: 'int'|'str' }
-    - pc：程式計數器（Program Counter）
-    - output：程式輸出結果串列（供測試用）
-    """
-
-    def __init__(self, code: List[Instruction], debug: bool = False):
-        self.code = code
-        self.debug = debug
-        self.stack: List[Any] = []
-        self.vars: Dict[str, Any] = {}
-        self.var_types: Dict[str, str] = {}
-        self.pc = 0
+    def __init__(self, code, debug=False, input_fn=None, base_dir='.'):
+        self.code    = code
+        self.debug   = debug
+        self.input_fn = input_fn or input  # 可替換供測試
+        self.base_dir = base_dir
+        self.stack: List[Any]       = []
+        self.vars:  Dict[str, Any]  = {}
+        self.var_types: Dict[str,str] = {}
+        self.pc     = 0
         self.output: List[str] = []
+        # 函數呼叫堆疊：[(return_pc, saved_vars, saved_var_types), ...]
+        self.call_stack: List = []
+        # 函數表：name → ('compiled', start_addr, params)
+        self.func_table: Dict = {}
+        # 錯誤處理堆疊：[handler_addr, ...]
+        self.try_stack: List[int] = []
 
-    def push(self, val: Any):
-        self.stack.append(val)
-
-    def pop(self) -> Any:
-        if not self.stack:
-            raise RuntimeError_("堆疊下溢（Stack Underflow）", self.pc)
+    def push(self, v): self.stack.append(v)
+    def pop(self):
+        if not self.stack: raise ZhRuntimeError("堆疊下溢", self.pc)
         return self.stack.pop()
 
-    def run(self) -> List[str]:
-        """執行 Bytecode，回傳所有輸出行"""
+    def run(self):
         while self.pc < len(self.code):
             instr = self.code[self.pc]
-            if self.debug:
-                self._print_debug(instr)
+            if self.debug: self._dbg(instr)
             self.pc += 1
-
-            op = instr.op
-            arg = instr.arg
-
-            # ── 常數推入 ──────────────────────────────────
-            if op == Op.PUSH_INT:
-                self.push(int(arg))
-
-            elif op == Op.PUSH_STR:
-                self.push(str(arg))
-
-            # ── 變數操作 ──────────────────────────────────
-            elif op == Op.DECLARE:
-                name, type_ann = arg
-                self.var_types[name] = type_ann
-
-            elif op == Op.STORE:
-                val = self.pop()
-                if arg in self.var_types:
-                    self._type_check_store(arg, val, instr)
-                self.vars[arg] = val
-
-            elif op == Op.LOAD:
-                if arg not in self.vars:
-                    raise RuntimeError_(f"變數「{arg}」未初始化", self.pc)
-                self.push(self.vars[arg])
-
-            # ── 列表操作 ──────────────────────────────────
-            elif op == Op.BUILD_LIST:
-                # 從堆疊取出 n 個元素（最先推入的在底部）
-                n = arg
-                if len(self.stack) < n:
-                    raise RuntimeError_(f"BUILD_LIST：堆疊元素不足（需要 {n} 個）", self.pc)
-                items = self.stack[-n:]   # 保持推入順序
-                del self.stack[-n:]
-                self.push(list(items))
-
-            elif op == Op.LOAD_INDEX:
-                # 堆疊：[... list, index]  → pop index → pop list → push list[index]
-                index = self.pop()
-                lst = self.pop()
-                if not isinstance(lst, list):
-                    raise RuntimeError_(f"LOAD_INDEX：目標不是列表，得到 {type(lst).__name__}", self.pc)
-                if not isinstance(index, int):
-                    raise RuntimeError_(f"列表索引必須是整數，得到 {type(index).__name__}", self.pc)
-                if index < 0 or index >= len(lst):
-                    raise RuntimeError_(f"索引 {index} 超出範圍（列表長度 {len(lst)}）", self.pc)
-                self.push(lst[index])
-
-            elif op == Op.STORE_INDEX:
-                # arg = 變數名稱；堆疊：[... index, value]
-                # pop value → pop index → vars[name][index] = value
-                val = self.pop()
-                index = self.pop()
-                name = arg
-                if name not in self.vars:
-                    raise RuntimeError_(f"變數「{name}」未初始化", self.pc)
-                lst = self.vars[name]
-                if not isinstance(lst, list):
-                    raise RuntimeError_(f"STORE_INDEX：「{name}」不是列表", self.pc)
-                if not isinstance(index, int):
-                    raise RuntimeError_(f"列表索引必須是整數，得到 {type(index).__name__}", self.pc)
-                if index < 0 or index >= len(lst):
-                    raise RuntimeError_(f"索引 {index} 超出範圍（列表長度 {len(lst)}）", self.pc)
-                lst[index] = val
-
-            # ── 算術運算 ──────────────────────────────────
-            elif op == Op.ADD:
-                b, a = self.pop(), self.pop()
-                if isinstance(a, str) and isinstance(b, str):
-                    self.push(a + b)
-                elif isinstance(a, int) and isinstance(b, int):
-                    self.push(a + b)
+            try:
+                self._exec(instr)
+            except (ZhRuntimeError, IndexError, ZeroDivisionError, Exception) as e:
+                if self.try_stack:
+                    # 跳到錯誤處理器
+                    handler = self.try_stack.pop()
+                    self.pc = handler
+                    # 清空多餘堆疊（保留基底）
                 else:
-                    raise RuntimeError_(f"加法型態不符：{type(a).__name__} + {type(b).__name__}", self.pc)
-
-            elif op == Op.SUB:
-                b, a = self.pop(), self.pop()
-                self._assert_int(a, b, "減法", instr)
-                self.push(a - b)
-
-            elif op == Op.MUL:
-                b, a = self.pop(), self.pop()
-                self._assert_int(a, b, "乘法", instr)
-                self.push(a * b)
-
-            elif op == Op.DIV:
-                b, a = self.pop(), self.pop()
-                self._assert_int(a, b, "除法", instr)
-                if b == 0:
-                    raise RuntimeError_("除以零錯誤", self.pc)
-                self.push(a // b)   # 整數除法
-
-            elif op == Op.NEG:
-                a = self.pop()
-                if not isinstance(a, int):
-                    raise RuntimeError_(f"「負」只能用於整數，但得到 {type(a).__name__}", self.pc)
-                self.push(-a)
-
-            # ── 比較運算 ──────────────────────────────────
-            elif op == Op.EQ:
-                b, a = self.pop(), self.pop()
-                self.push(1 if a == b else 0)
-
-            elif op == Op.NEQ:
-                b, a = self.pop(), self.pop()
-                self.push(1 if a != b else 0)
-
-            elif op == Op.GT:
-                b, a = self.pop(), self.pop()
-                self.push(1 if a > b else 0)
-
-            elif op == Op.LT:
-                b, a = self.pop(), self.pop()
-                self.push(1 if a < b else 0)
-
-            elif op == Op.GTE:
-                b, a = self.pop(), self.pop()
-                self.push(1 if a >= b else 0)
-
-            elif op == Op.LTE:
-                b, a = self.pop(), self.pop()
-                self.push(1 if a <= b else 0)
-
-            # ── 邏輯運算 ──────────────────────────────────
-            elif op == Op.AND:
-                b, a = self.pop(), self.pop()
-                self.push(1 if (a and b) else 0)
-
-            elif op == Op.OR:
-                b, a = self.pop(), self.pop()
-                self.push(1 if (a or b) else 0)
-
-            elif op == Op.NOT:
-                a = self.pop()
-                self.push(0 if a else 1)
-
-            # ── 跳轉 ──────────────────────────────────────
-            elif op == Op.JUMP:
-                self.pc = arg
-
-            elif op == Op.JUMP_IF_FALSE:
-                cond = self.pop()
-                if not cond:
-                    self.pc = arg
-
-            # ── 輸出 ──────────────────────────────────────
-            elif op == Op.PRINT:
-                val = self.pop()
-                if isinstance(val, list):
-                    line = "［" + "，".join(str(v) for v in val) + "］"
-                else:
-                    line = str(val)
-                self.output.append(line)
-                print(line)
-
-            # ── 結束 ──────────────────────────────────────
-            elif op == Op.HALT:
-                break
-
-            else:
-                raise RuntimeError_(f"未知指令：{op}", self.pc)
-
+                    raise
         return self.output
 
-    def _type_check_store(self, name: str, val: Any, instr: Instruction):
-        expected = self.var_types[name]
-        actual = type(val).__name__
-        type_map = {
-            'int':      (int,),
-            'str':      (str,),
-            'int_list': (list,),
-            'str_list': (list,),
-        }
-        if expected in type_map and not isinstance(val, type_map[expected]):
-            raise RuntimeError_(
-                f"型態錯誤：變數「{name}」是 {expected}，"
-                f"但賦值為 {actual}", self.pc)
-        # 深度檢查列表元素型態
-        if expected == 'int_list' and isinstance(val, list):
-            for i, el in enumerate(val):
-                if not isinstance(el, int):
-                    raise RuntimeError_(
-                        f"整數列表「{name}」的第 {i} 個元素應為整數，"
-                        f"但得到 {type(el).__name__}", self.pc)
-        elif expected == 'str_list' and isinstance(val, list):
-            for i, el in enumerate(val):
-                if not isinstance(el, str):
-                    raise RuntimeError_(
-                        f"字串列表「{name}」的第 {i} 個元素應為字串，"
-                        f"但得到 {type(el).__name__}", self.pc)
+    def _exec(self, instr):
+        op, arg = instr.op, instr.arg
 
-    def _assert_int(self, a, b, op_name: str, instr: Instruction):
-        if not (isinstance(a, int) and isinstance(b, int)):
-            raise RuntimeError_(
-                f"{op_name}只允許整數，"
-                f"但得到 {type(a).__name__} 和 {type(b).__name__}", self.pc)
+        if   op == Op.PUSH_INT:   self.push(int(arg))
+        elif op == Op.PUSH_STR:   self.push(str(arg))
+        elif op == Op.LOAD:
+            if arg not in self.vars: raise ZhRuntimeError(f"變數「{arg}」未初始化", self.pc)
+            self.push(self.vars[arg])
+        elif op == Op.STORE:      self.vars[arg] = self.pop()
+        elif op == Op.DECLARE:
+            name, type_ann = arg; self.var_types[name] = type_ann
 
-    def _print_debug(self, instr: Instruction):
-        stack_repr = str(self.stack[-5:]) if self.stack else "[]"
-        print(f"  [PC={self.pc:03d}] {str(instr):<30} | 堆疊: {stack_repr}")
+        # ── 列表 ──────────────────────────────────────────
+        elif op == Op.BUILD_LIST:
+            n = arg
+            items = self.stack[-n:]; del self.stack[-n:]
+            self.push(list(items))
+        elif op == Op.LOAD_INDEX:
+            idx = self.pop(); lst = self.pop()
+            if not isinstance(lst, list): raise ZhRuntimeError(f"不是列表", self.pc)
+            if not isinstance(idx, int):  raise ZhRuntimeError(f"索引必須是整數", self.pc)
+            if idx < 0 or idx >= len(lst): raise ZhRuntimeError(f"索引 {idx} 超出範圍（長度{len(lst)}）", self.pc)
+            self.push(lst[idx])
+        elif op == Op.STORE_INDEX:
+            val = self.pop(); idx = self.pop()
+            lst = self.vars.get(arg)
+            if not isinstance(lst, list): raise ZhRuntimeError(f"「{arg}」不是列表", self.pc)
+            if idx < 0 or idx >= len(lst): raise ZhRuntimeError(f"索引 {idx} 超出範圍", self.pc)
+            lst[idx] = val
+        elif op == Op.APPEND:
+            val = self.pop(); lst = self.vars.get(arg)
+            if not isinstance(lst, list): raise ZhRuntimeError(f"「{arg}」不是列表", self.pc)
+            lst.append(val)
+        elif op == Op.POP_LIST:
+            listname, dest = arg
+            lst = self.vars.get(listname)
+            if not isinstance(lst, list): raise ZhRuntimeError(f"「{listname}」不是列表", self.pc)
+            if not lst: raise ZhRuntimeError(f"列表「{listname}」已空，無法彈出", self.pc)
+            val = lst.pop()
+            if dest: self.vars[dest] = val
+        elif op == Op.LIST_LEN:
+            v = self.pop()
+            if isinstance(v, (list, str)): self.push(len(v))
+            else: raise ZhRuntimeError(f"長度只能用於列表或字串", self.pc)
+
+        # ── 算術 ──────────────────────────────────────────
+        elif op == Op.ADD:
+            b, a = self.pop(), self.pop()
+            if isinstance(a, str) and isinstance(b, str): self.push(a+b)
+            elif isinstance(a, int) and isinstance(b, int): self.push(a+b)
+            else: raise ZhRuntimeError(f"加法型態不符：{type(a).__name__}+{type(b).__name__}", self.pc)
+        elif op == Op.SUB:  b,a=self.pop(),self.pop(); self.push(a-b)
+        elif op == Op.MUL:  b,a=self.pop(),self.pop(); self.push(a*b)
+        elif op == Op.DIV:
+            b,a=self.pop(),self.pop()
+            if b==0: raise ZhRuntimeError("除以零", self.pc)
+            self.push(a//b)
+        elif op == Op.MOD:
+            b,a=self.pop(),self.pop()
+            if b==0: raise ZhRuntimeError("餘數除以零", self.pc)
+            self.push(a%b)
+        elif op == Op.POW:  b,a=self.pop(),self.pop(); self.push(a**b)
+        elif op == Op.NEG:  self.push(-self.pop())
+
+        # ── 比較 / 邏輯 ───────────────────────────────────
+        elif op == Op.EQ:  b,a=self.pop(),self.pop(); self.push(1 if a==b else 0)
+        elif op == Op.NEQ: b,a=self.pop(),self.pop(); self.push(1 if a!=b else 0)
+        elif op == Op.GT:  b,a=self.pop(),self.pop(); self.push(1 if a>b  else 0)
+        elif op == Op.LT:  b,a=self.pop(),self.pop(); self.push(1 if a<b  else 0)
+        elif op == Op.GTE: b,a=self.pop(),self.pop(); self.push(1 if a>=b else 0)
+        elif op == Op.LTE: b,a=self.pop(),self.pop(); self.push(1 if a<=b else 0)
+        elif op == Op.AND: b,a=self.pop(),self.pop(); self.push(1 if (a and b) else 0)
+        elif op == Op.OR:  b,a=self.pop(),self.pop(); self.push(1 if (a or  b) else 0)
+        elif op == Op.NOT: self.push(0 if self.pop() else 1)
+
+        # ── 跳轉 ──────────────────────────────────────────
+        elif op == Op.JUMP:           self.pc = arg
+        elif op == Op.JUMP_IF_FALSE:
+            if not self.pop(): self.pc = arg
+
+        # ── 輸入/輸出 ─────────────────────────────────────
+        elif op == Op.PRINT:
+            val = self.pop()
+            line = "［"+"，".join(str(v) for v in val)+"］" if isinstance(val, list) else str(val)
+            self.output.append(line); print(line)
+        elif op == Op.INPUT:
+            prompt, varname = arg
+            try:
+                val = self.input_fn(prompt + " ")
+            except EOFError:
+                val = ""
+            self.vars[varname] = val
+            if varname not in self.var_types: self.var_types[varname] = 'str'
+
+        # ── 函數 ──────────────────────────────────────────
+        elif op == Op.CALL:
+            fname, argc = arg
+            if fname not in self.func_table:
+                raise ZhRuntimeError(f"未知函數「{fname}」", self.pc)
+            entry = self.func_table[fname]
+            args = list(reversed([self.pop() for _ in range(argc)]))
+            if entry[0] == 'compiled':
+                _, start_addr, params = entry
+                if len(args) != len(params):
+                    raise ZhRuntimeError(f"函數「{fname}」需要 {len(params)} 個引數，但給了 {len(args)} 個", self.pc)
+                self.call_stack.append((self.pc, dict(self.vars), dict(self.var_types)))
+                self.vars = {p: v for p, v in zip(params, args)}
+                self.var_types = {p: 'any' for p in params}
+                self.pc = start_addr
+            elif entry[0] == 'external':
+                _, mod_vm, start_addr, params = entry
+                if len(args) != len(params):
+                    raise ZhRuntimeError(f"函數「{fname}」需要 {len(params)} 個引數，但給了 {len(args)} 個", self.pc)
+                # 在模組 VM 上執行函數
+                mod_vm.stack = list(args)  # 把引數放入模組 VM 的堆疊
+                mod_vm.vars = {p: v for p, v in zip(params, args)}
+                mod_vm.var_types = {p: 'any' for p in params}
+                mod_vm.call_stack = []
+                mod_vm.pc = start_addr
+                # 執行直到函數 RETURN（用 call_stack 深度判斷）
+                from lexer_parser import ASTNode  # ensure import not needed
+                initial_depth = len(mod_vm.call_stack)
+                mod_vm.call_stack = []   # 清空，讓 RETURN 能正確回到這裡
+                initial_stack_len = len(mod_vm.stack)
+                # 把引數推入 mod_vm stack 並設置呼叫幀
+                # 使用 mod_vm 的 compiled CALL 機制
+                mod_vm.stack = []
+                mod_vm.vars = {p: v for p, v in zip(params, args)}
+                mod_vm.var_types = {p: 'any' for p in params}
+                mod_vm.pc = start_addr
+                # 執行，RETURN 會把值推入 mod_vm.stack 並設 pc 超出範圍
+                try:
+                    while mod_vm.pc < len(mod_vm.code):
+                        mi = mod_vm.code[mod_vm.pc]; mod_vm.pc += 1
+                        if mi.op.value == 'RETURN':
+                            # 執行 RETURN：若 call_stack 空，則這是頂層 return
+                            if not mod_vm.call_stack:
+                                ret_val = mod_vm.pop()
+                                self.push(ret_val)
+                                break
+                        mod_vm._exec(mi)
+                    else:
+                        ret = mod_vm.stack[-1] if mod_vm.stack else 0
+                        self.push(ret)
+                except Exception as e:
+                    raise ZhRuntimeError(f"外部函數「{fname}」執行錯誤：{e}", self.pc)
+            else:
+                raise ZhRuntimeError(f"函數「{fname}」格式錯誤", self.pc)
+        elif op == Op.RETURN:
+            ret_val = self.pop()
+            if not self.call_stack:
+                self.push(ret_val); self.pc = len(self.code); return
+            ret_pc, saved_vars, saved_types = self.call_stack.pop()
+            self.vars = saved_vars; self.var_types = saved_types
+            self.pc = ret_pc
+            self.push(ret_val)
+
+        # ── 錯誤處理 ──────────────────────────────────────
+        elif op == Op.TRY_BEGIN:   self.try_stack.append(arg)
+        elif op == Op.TRY_END:
+            if self.try_stack: self.try_stack.pop()
+
+        # ── 引入 ──────────────────────────────────────────
+        elif op == Op.IMPORT:
+            self._do_import(arg)
+
+        elif op == Op.HALT: self.pc = len(self.code)
+
+    def _do_import(self, module_name: str):
+        """引入另一個 .中文 檔案，執行後其函數可在本 VM 中呼叫"""
+        candidates = [
+            os.path.join(self.base_dir, f"{module_name}.中文"),
+            os.path.join(self.base_dir, f"{module_name}.txt"),
+        ]
+        path = next((p for p in candidates if os.path.exists(p)), None)
+        if not path:
+            raise ZhRuntimeError(f"找不到模組「{module_name}」（找過：{candidates}）", self.pc)
+        with open(path, encoding='utf-8') as f:
+            src = f.read()
+        tokens = Lexer(src).tokenize()
+        ast    = Parser(tokens).parse()
+        comp   = Compiler()
+        code   = comp.compile(ast)
+        # 建立模組專屬 VM 並執行（執行頂層程式碼）
+        mod_vm = VM(code, base_dir=self.base_dir, input_fn=self.input_fn)
+        mod_vm.func_table = {}
+        mod_vm.run()
+        # 把模組自身的函數表設置好（供遞迴呼叫使用）
+        for fname, entry in comp.func_table.items():
+            if entry[0] == 'compiled':
+                mod_vm.func_table[fname] = entry   # 使用 compiled 格式，位址在 mod_vm.code
+        # 合併函數表：把模組的函數包裝成「帶 vm 的條目」，供外部呼叫
+        for fname, entry in comp.func_table.items():
+            if entry[0] == 'compiled':
+                _, start_addr, params = entry
+                self.func_table[fname] = ('external', mod_vm, start_addr, params)
+
+    def _dbg(self, instr):
+        s = str(self.stack[-4:]) if self.stack else "[]"
+        print(f"  [PC={self.pc:03d}] {str(instr):<30} | 堆疊:{s}")
 
 
 # ============================================================
-# Bytecode 反組譯器（人類可讀輸出）
+# 反組譯器
 # ============================================================
 
-def disassemble(code: List[Instruction]) -> str:
-    lines = ["位址  指令              參數"]
-    lines.append("─" * 45)
-    for i, instr in enumerate(code):
-        arg_str = repr(instr.arg) if instr.arg is not None else ""
-        lines.append(f"{i:04d}  {instr.op.value:<18} {arg_str}")
+def disassemble(code):
+    lines = ["位址  指令              參數", "─"*50]
+    for i, ins in enumerate(code):
+        a = repr(ins.arg) if ins.arg is not None else ""
+        lines.append(f"{i:04d}  {ins.op.value:<20} {a}")
     return "\n".join(lines)
 
 
@@ -731,258 +706,69 @@ def disassemble(code: List[Instruction]) -> str:
 # 統一執行介面
 # ============================================================
 
-def run_source(source: str, debug: bool = False, show_ast: bool = False,
-               show_bytecode: bool = False) -> List[str]:
-    """
-    完整執行流程：原始碼 → Lexer → Parser → Compiler → VM
-
-    參數：
-        source        — 繁體中文程式碼字串
-        debug         — 是否印出 VM 執行追蹤（每條指令 + 堆疊狀態）
-        show_ast      — 是否印出 AST
-        show_bytecode — 是否印出 Bytecode 反組譯
-
-    回傳：輸出行串列
-    """
-    # 1. 詞法分析
-    lexer = Lexer(source)
-    tokens = lexer.tokenize()
-
-    # 2. 語法分析
-    parser = Parser(tokens)
-    ast = parser.parse()
-
+def run_source(source: str, debug=False, show_ast=False, show_bytecode=False,
+               input_fn=None, base_dir=None) -> List[str]:
+    # base_dir 未指定時，預設使用 compiler_vm.py 本身所在的目錄
+    # 這樣不管從哪裡執行（終端機、GUI、其他腳本），引入模組都能找到正確路徑
+    if base_dir is None:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+    tokens  = Lexer(source).tokenize()
+    ast     = Parser(tokens).parse()
     if show_ast:
-        print("\n── AST ──────────────────────────────────────")
+        print("\n── AST ──────────────────────────────")
         print(pretty_print_ast(ast))
-
-    # 3. 編譯
-    compiler = Compiler()
-    code = compiler.compile(ast)
-
+    comp    = Compiler()
+    code    = comp.compile(ast)
     if show_bytecode:
-        print("\n── Bytecode 反組譯 ──────────────────────────")
+        print("\n── Bytecode ─────────────────────────")
         print(disassemble(code))
-
-    # 4. 執行
-    if debug:
-        print("\n── VM 執行追蹤 ──────────────────────────────")
-    vm = VM(code, debug=debug)
+    if debug: print("\n── VM 追蹤 ──────────────────────────")
+    vm = VM(code, debug=debug, input_fn=input_fn, base_dir=base_dir)
+    vm.func_table = comp.func_table
     return vm.run()
 
 
-# ============================================================
-# 互動式 REPL（Read-Eval-Print Loop）
-# ============================================================
+def run_file(path: str, debug=False, show_ast=False, show_bytecode=False):
+    with open(path, encoding='utf-8') as f: src = f.read()
+    print(f"執行：{path}\n{'─'*45}")
+    run_source(src, debug=debug, show_ast=show_ast, show_bytecode=show_bytecode,
+               base_dir=os.path.dirname(os.path.abspath(path)))
+    print(f"{'─'*45}\n執行完畢 ✓")
+
 
 def repl():
-    """
-    互動式 REPL：
-    逐行輸入程式碼，輸入空行執行，輸入「結束」或 Ctrl+C 離開。
-    """
-    print("=" * 60)
-    print("  繁體中文程式語言 REPL")
-    print("  輸入程式碼後按 Enter，空行執行，輸入「結束」離開")
-    print("=" * 60)
-
+    print("="*55)
+    print("  繁體中文程式語言  REPL")
+    print("  空行執行  /  「結束」離開")
+    print("="*55)
     while True:
-        lines = []
-        print()
+        lines = []; print()
         try:
             while True:
-                try:
-                    prompt = ">>> " if not lines else "... "
-                    line = input(prompt)
-                except EOFError:
-                    return
-                if line.strip() == "結束":
-                    print("再見！")
-                    return
-                if line == "" and lines:
-                    break
+                try: line = input(">>> " if not lines else "... ")
+                except EOFError: return
+                if line.strip() == "結束": print("再見！"); return
+                if line == "" and lines: break
                 lines.append(line)
-        except KeyboardInterrupt:
-            print("\n再見！")
-            return
-
-        source = "\n".join(lines)
-        if not source.strip():
-            continue
-
-        try:
-            run_source(source)
-        except Exception as e:
-            print(f"  ✗ {e}")
+        except KeyboardInterrupt: print("\n再見！"); return
+        src = "\n".join(lines)
+        if not src.strip(): continue
+        try: run_source(src)
+        except Exception as e: print(f"  ✗ {e}")
 
 
 # ============================================================
-# 命令列執行
+# CLI 入口
 # ============================================================
-
-def run_file(path: str, debug: bool = False,
-             show_ast: bool = False, show_bytecode: bool = False):
-    """讀取 .中文 檔案並執行"""
-    with open(path, encoding='utf-8') as f:
-        source = f.read()
-    print(f"執行：{path}")
-    print("─" * 45)
-    run_source(source, debug=debug, show_ast=show_ast, show_bytecode=show_bytecode)
-    print("─" * 45)
-    print("執行完畢 ✓")
-
-
-# ============================================================
-# 完整示範
-# ============================================================
-
-DEMO_PROGRAMS = {
-    "基本輸出與算術": """
-令 甲 為 整數 等於 10。
-令 乙 為 整數 等於 3。
-令 總和 為 整數 等於 甲 加 乙。
-令 積 為 整數 等於 甲 乘 乙。
-令 商 為 整數 等於 甲 除 乙。
-顯示 總和。
-顯示 積。
-顯示 商。
-""",
-
-    "字串操作": """
-令 姓 為 字串 等於 「王」。
-令 名 為 字串 等於 「小明」。
-令 全名 為 字串 等於 姓 加 名。
-顯示 全名。
-""",
-
-    "條件判斷": """
-令 分數 為 整數 等於 85。
-如果（分數 大於等於 60）則：
-  顯示 「及格」。
-。完否則：
-  顯示 「不及格」。
-。完
-""",
-
-    "循環計數": """
-令 計數 為 整數 等於 1。
-當（計數 小於等於 5）就：
-  顯示 計數。
-  令 計數 等於 計數 加 1。
-。完
-""",
-
-    "巢狀條件與循環": """
-令 數字 為 整數 等於 1。
-當（數字 小於等於 10）就：
-  如果（數字 乘 數字 大於 50）則：
-    顯示 「平方超過50」。
-  。完否則：
-    顯示 數字。
-  。完
-  令 數字 等於 數字 加 1。
-。完
-""",
-
-    "FizzBuzz": """
-令 數 為 整數 等於 1。
-當（數 小於等於 15）就：
-  如果（數 除 15 乘 15 等於 數）則：
-    顯示 「三五」。
-  。完否則：
-    如果（數 除 3 乘 3 等於 數）則：
-      顯示 「三」。
-    。完否則：
-      如果（數 除 5 乘 5 等於 數）則：
-        顯示 「五」。
-      。完否則：
-        顯示 數。
-      。完
-    。完
-  。完
-  令 數 等於 數 加 1。
-。完
-""",
-
-    "列表基本操作": """
-# 宣告整數列表
-令 數組 為 整數列表 等於 ［10，20，30，40，50］。
-顯示 數組。
-
-# 存取元素
-顯示 數組［0］。
-顯示 數組［2］。
-
-# 修改元素
-令 數組［1］ 等於 99。
-顯示 數組。
-""",
-
-    "列表走訪與累加": """
-令 成績 為 整數列表 等於 ［85，92，78，96，88］。
-令 總分 為 整數 等於 0。
-令 索引 為 整數 等於 0。
-當（索引 小於等於 4）就：
-  令 總分 等於 總分 加 成績［索引］。
-  令 索引 等於 索引 加 1。
-。完
-顯示 「總分：」。
-顯示 總分。
-""",
-
-    "字串列表": """
-令 語言 為 字串列表 等於 ［「繁體中文」，「English」，「日本語」］。
-顯示 語言［0］。
-顯示 語言［1］。
-令 語言［2］ 等於 「한국어」。
-顯示 語言［2］。
-""",
-}
-
-
-def run_all_demos():
-    print("=" * 60)
-    print("  繁體中文程式語言 — 完整功能示範")
-    print("=" * 60)
-
-    for title, src in DEMO_PROGRAMS.items():
-        print(f"\n【{title}】")
-        print("  程式碼：")
-        for line in src.strip().split("\n"):
-            print(f"    {line}")
-        print("  輸出：")
-        try:
-            outputs = run_source(src.strip())
-            for o in outputs:
-                print(f"    {o}")
-        except Exception as e:
-            print(f"  ✗ {e}")
-
 
 if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) == 1:
-        # 無參數：執行完整示範
-        run_all_demos()
-        print("\n" + "=" * 60)
-        print("  輸入 python compiler_vm.py repl    → 互動模式")
-        print("  輸入 python compiler_vm.py <檔案>  → 執行檔案")
-        print("=" * 60)
-
-    elif sys.argv[1] == "repl":
-        repl()
-
-    elif sys.argv[1] == "demo":
-        name = sys.argv[2] if len(sys.argv) > 2 else list(DEMO_PROGRAMS)[0]
-        src = DEMO_PROGRAMS.get(name, list(DEMO_PROGRAMS.values())[0])
-        debug = "--debug" in sys.argv
-        bc = "--bytecode" in sys.argv
-        ast_ = "--ast" in sys.argv
-        run_source(src.strip(), debug=debug, show_ast=ast_, show_bytecode=bc)
-
+    args = sys.argv[1:]
+    if not args:
+        print("用法："); print("  python compiler_vm.py <檔案.中文>  [--debug] [--ast] [--bytecode]")
+        print("  python compiler_vm.py repl")
+    elif args[0] == "repl": repl()
     else:
-        # 當作檔案路徑
-        debug = "--debug" in sys.argv
-        bc = "--bytecode" in sys.argv
-        ast_ = "--ast" in sys.argv
-        run_file(sys.argv[1], debug=debug, show_ast=ast_, show_bytecode=bc)
+        run_file(args[0],
+                 debug="--debug" in args,
+                 show_ast="--ast" in args,
+                 show_bytecode="--bytecode" in args)

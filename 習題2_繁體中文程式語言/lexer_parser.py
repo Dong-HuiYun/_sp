@@ -1,124 +1,146 @@
 """
-繁體中文程式語言 - Lexer (詞法分析器) 與 Parser (語法分析器)
-============================================================
+繁體中文程式語言 v3 - Lexer + Parser
+====================================================================
 
-EBNF 語法規則
-=============
+EBNF 語法規則（完整版）
+========================
 
-程式         ::= 語句列表
-語句列表      ::= 語句 { 語句 }
-語句         ::= 宣告語句
-               | 列表宣告語句
-               | 賦值語句
-               | 索引賦值語句
-               | 顯示語句
-               | 判斷語句
-               | 循環語句
+程式         ::= { 頂層語句 }
+頂層語句      ::= 函數定義 | 引入語句 | 語句
+語句列表      ::= { 語句 }
 
-宣告語句      ::= 「令」 識別字 「為」 純量類型 「等於」 表達式 「。」
-列表宣告語句  ::= 「令」 識別字 「為」 列表類型 「等於」 列表字面值 「。」
+函數定義      ::= 「定義」 識別字 「（」 [ 參數列表 ] 「）」 「為」 「：」 語句列表 「。完」
+參數列表      ::= 識別字 { 「，」 識別字 }
+引入語句      ::= 「引入」 識別字 「。」
+
+語句         ::= 宣告語句 | 賦值語句 | 索引賦值語句
+               | 顯示語句 | 詢問語句
+               | 判斷語句 | 當循環 | 從到循環
+               | 回傳語句 | 跳出語句 | 繼續語句
+               | 嘗試語句 | 表達式語句
+               | 添加語句 | 彈出語句
+
+宣告語句      ::= 「令」 識別字 「為」 類型 「等於」 表達式 「。」
 賦值語句      ::= 「令」 識別字 「等於」 表達式 「。」
 索引賦值語句  ::= 「令」 識別字 「［」 表達式 「］」 「等於」 表達式 「。」
 顯示語句      ::= 「顯示」 表達式 「。」
-判斷語句      ::= 「如果」 「（」 條件表達式 「）」 「則」 區塊
-                  [ 「否則」 區塊 ]
-循環語句      ::= 「當」 「（」 條件表達式 「）」 「就」 區塊
+詢問語句      ::= 「詢問」 字串字面值 「並存入」 識別字 「。」
+回傳語句      ::= 「回傳」 表達式 「。」
+跳出語句      ::= 「跳出」 「。」
+繼續語句      ::= 「繼續」 「。」
+添加語句      ::= 「添加」 表達式 「於」 識別字 「。」
+彈出語句      ::= 「彈出」 識別字 「。」
+              | 「彈出」 識別字 「並存入」 識別字 「。」
+
+判斷語句      ::= 「如果」 「（」 條件 「）」 「則」 區塊 [ 「否則」 區塊 ]
+當循環        ::= 「當」 「（」 條件 「）」 「就」 區塊
+從到循環      ::= 「從」 表達式 「到」 表達式 「以」 識別字 「做」 區塊
+嘗試語句      ::= 「嘗試」 「：」 語句列表 「。完」 「若出錯」 「：」 語句列表 「。完」
 
 區塊         ::= 「：」 語句列表 「。完」
-               | 「：」 語句 （隱含單一語句區塊）
 
-純量類型      ::= 「整數」 | 「字串」
-列表類型      ::= 「整數列表」 | 「字串列表」
-
-列表字面值    ::= 「［」 [ 表達式 { 「，」 表達式 } ] 「］」
+類型         ::= 「整數」 | 「字串」 | 「整數列表」 | 「字串列表」
 
 表達式       ::= 加減表達式
-加減表達式    ::= 乘除表達式 { ( 「加」 | 「減」 ) 乘除表達式 }
-乘除表達式    ::= 一元表達式 { ( 「乘」 | 「除」 ) 一元表達式 }
+加減表達式    ::= 乘除餘表達式 { ( 「加」|「減」 ) 乘除餘表達式 }
+乘除餘表達式  ::= 次方表達式 { ( 「乘」|「除」|「餘」 ) 次方表達式 }
+次方表達式    ::= 一元表達式 [ 「次方」 一元表達式 ]
 一元表達式    ::= [ 「負」 ] 後綴表達式
 後綴表達式    ::= 基本表達式 { 「［」 表達式 「］」 }
-基本表達式    ::= 整數字面值
-               | 字串字面值
-               | 列表字面值
-               | 識別字
+基本表達式    ::= 整數字面值 | 字串字面值 | 列表字面值
+               | 識別字 [ 「（」 引數列表 「）」 ]
+               | 內建函數呼叫
                | 「（」 表達式 「）」
 
-條件表達式    ::= 表達式 比較運算子 表達式
-               | 表達式 「且」 表達式
-               | 表達式 「或」 表達式
-               | 「非」 「（」 條件表達式 「）」
+內建函數呼叫  ::= 「長度」 「（」 表達式 「）」
+引數列表      ::= [ 表達式 { 「，」 表達式 } ]
 
-比較運算子    ::= 「等於」 | 「不等於」 | 「大於」 | 「小於」
-               | 「大於等於」 | 「小於等於」
-
-識別字        ::= 中文字 { 中文字 | 數字 }
-整數字面值    ::= 數字 { 數字 }
-字串字面值    ::= 「「」 { 任意字元 } 「」」
-列表字面值    ::= 「［」 [ 表達式 { 「，」 表達式 } ] 「］」
-
+條件         ::= 比較 { ( 「且」|「或」 ) 比較 }
+               | 「非」 「（」 條件 「）」
+比較         ::= 表達式 [ 比較運算子 表達式 ]
+比較運算子    ::= 「等於」|「不等於」|「大於」|「小於」|「大於等於」|「小於等於」
 """
 
 import re
-from enum import Enum, auto
+from enum import Enum
 from dataclasses import dataclass, field
 from typing import Optional, List, Any
 
 
 # ============================================================
-# Token 類型定義
+# Token 類型
 # ============================================================
 
 class TokenType(Enum):
-    # 關鍵字
-    LING            = "令"       # 變數宣告/賦值
-    WEI             = "為"       # 類型指定
-    DENGYU          = "等於"     # 等於（賦值與比較）
-    BUDENGYU        = "不等於"   # 不等於
-    XIANSHI         = "顯示"     # 輸出
-    RUGUO           = "如果"     # if
-    ZE              = "則"       # then
-    FOUZE           = "否則"     # else
-    DANG            = "當"       # while
-    JIU             = "就"       # do
-    JIA             = "加"       # +
-    JIAN            = "減"       # -
-    CHENG           = "乘"       # *
-    CHU             = "除"       # /
-    FU              = "負"       # unary minus
-    QIE             = "且"       # and
-    HUO             = "或"       # or
-    FEI             = "非"       # not
-    DAYÜ            = "大於"     # >
-    XIAOYÜ          = "小於"     # <
-    DAYÜDENGYU      = "大於等於" # >=
-    XIAOYÜDENGYU    = "小於等於" # <=
-    ZHENSHU         = "整數"     # int type
-    ZIFUCHUAN       = "字串"     # string type
-    ZHENSHU_LIEBIAO = "整數列表" # int list type
-    ZIFUCHUAN_LIEBIAO = "字串列表" # string list type
-
-    # 標點符號
-    MAOHAO      = "："       # colon (block start)
-    WANHAO      = "。"       # period (statement end)
-    WANBI       = "完"       # end of block marker (。完)
-    ZUOKUO      = "（"       # left paren
-    YOUKUO      = "）"       # right paren
-    FANG_ZUO    = "［"       # left bracket  ［
-    FANG_YOU    = "］"       # right bracket ］
-    DOUHAO     = "，"        # comma         ，
-
-    # 字面值與識別字
-    INT_LIT     = "整數字面值"
-    STR_LIT     = "字串字面值"
-    IDENT       = "識別字"
-
-    # 特殊
-    EOF         = "EOF"
-    NEWLINE     = "換行"
+    # ── 關鍵字 ──────────────────────────────────────────────
+    LING              = "令"
+    WEI               = "為"
+    DENGYU            = "等於"
+    BUDENGYU          = "不等於"
+    XIANSHI           = "顯示"
+    XUNWEN            = "詢問"        # input
+    BINGCUNRU         = "並存入"      # and store into
+    RUGUO             = "如果"
+    ZE                = "則"
+    FOUZE             = "否則"
+    DANG              = "當"
+    JIU               = "就"
+    CONG              = "從"          # for-from
+    DAO               = "到"          # for-to
+    YI                = "以"          # for-as
+    ZUO               = "做"          # for-do
+    DINGY             = "定義"        # def
+    HUITAN            = "回傳"        # return
+    TIAOCHU           = "跳出"        # break
+    JIXU              = "繼續"        # continue
+    YINRU             = "引入"        # import
+    SHICHANG          = "嘗試"        # try
+    RUOCHUCUO         = "若出錯"      # except
+    TIANJIA           = "添加"        # append
+    YU                = "於"          # to (for append)
+    TANCHU            = "彈出"        # pop
+    CHANGDU           = "長度"        # len()
+    # 算術
+    JIA               = "加"
+    JIAN              = "減"
+    CHENG             = "乘"
+    CHU               = "除"
+    YU_SHU            = "餘"          # modulo
+    CIFANG            = "次方"        # power
+    FU                = "負"
+    # 邏輯
+    QIE               = "且"
+    HUO               = "或"
+    FEI               = "非"
+    # 比較
+    DAYÜ              = "大於"
+    XIAOYÜ            = "小於"
+    DAYÜDENGYU        = "大於等於"
+    XIAOYÜDENGYU      = "小於等於"
+    # 類型
+    ZHENSHU           = "整數"
+    ZIFUCHUAN         = "字串"
+    ZHENSHU_LIEBIAO   = "整數列表"
+    ZIFUCHUAN_LIEBIAO = "字串列表"
+    # 完
+    WANBI             = "完"
+    # ── 標點 ────────────────────────────────────────────────
+    MAOHAO   = "："
+    WANHAO   = "。"
+    ZUOKUO   = "（"
+    YOUKUO   = "）"
+    FANG_ZUO = "［"
+    FANG_YOU = "］"
+    DOUHAO   = "，"
+    # ── 字面值與識別字 ───────────────────────────────────────
+    INT_LIT  = "整數字面值"
+    STR_LIT  = "字串字面值"
+    IDENT    = "識別字"
+    EOF      = "EOF"
 
 
 # ============================================================
-# Token 資料結構
+# Token
 # ============================================================
 
 @dataclass
@@ -127,36 +149,52 @@ class Token:
     value: Any
     line: int
     col: int
-
     def __repr__(self):
-        return f"Token({self.type.name}, {self.value!r}, line={self.line}, col={self.col})"
+        return f"Token({self.type.name}, {self.value!r}, L{self.line})"
 
 
 # ============================================================
-# 詞法分析錯誤
+# 錯誤
 # ============================================================
 
 class LexerError(Exception):
     def __init__(self, msg, line, col):
         super().__init__(f"[詞法錯誤] 第{line}行 第{col}列：{msg}")
-        self.line = line
-        self.col = col
+
+class ParseError(Exception):
+    def __init__(self, msg, token: Token):
+        super().__init__(
+            f"[語法錯誤] 第{token.line}行 第{token.col}列：{msg}，"
+            f"遇到了 {token.type.name}({token.value!r})")
+        self.token = token
 
 
 # ============================================================
-# LEXER 詞法分析器
+# 關鍵字表（長優先）
 # ============================================================
 
-# 關鍵字對照表（順序很重要，長的優先匹配）
 KEYWORDS = [
     ("大於等於",   TokenType.DAYÜDENGYU),
     ("小於等於",   TokenType.XIAOYÜDENGYU),
     ("不等於",     TokenType.BUDENGYU),
-    ("整數列表",   TokenType.ZHENSHU_LIEBIAO),   # 必須在「整數」前面
-    ("字串列表",   TokenType.ZIFUCHUAN_LIEBIAO), # 必須在「字串」前面
+    ("整數列表",   TokenType.ZHENSHU_LIEBIAO),
+    ("字串列表",   TokenType.ZIFUCHUAN_LIEBIAO),
+    ("並存入",     TokenType.BINGCUNRU),
+    ("若出錯",     TokenType.RUOCHUCUO),
+    ("次方",       TokenType.CIFANG),
+    ("長度",       TokenType.CHANGDU),
     ("顯示",       TokenType.XIANSHI),
+    ("詢問",       TokenType.XUNWEN),
     ("如果",       TokenType.RUGUO),
     ("否則",       TokenType.FOUZE),
+    ("定義",       TokenType.DINGY),
+    ("回傳",       TokenType.HUITAN),
+    ("跳出",       TokenType.TIAOCHU),
+    ("繼續",       TokenType.JIXU),
+    ("引入",       TokenType.YINRU),
+    ("嘗試",       TokenType.SHICHANG),
+    ("添加",       TokenType.TIANJIA),
+    ("彈出",       TokenType.TANCHU),
     ("等於",       TokenType.DENGYU),
     ("整數",       TokenType.ZHENSHU),
     ("字串",       TokenType.ZIFUCHUAN),
@@ -167,14 +205,20 @@ KEYWORDS = [
     ("則",         TokenType.ZE),
     ("當",         TokenType.DANG),
     ("就",         TokenType.JIU),
+    ("從",         TokenType.CONG),
+    ("到",         TokenType.DAO),
+    ("以",         TokenType.YI),
+    ("做",         TokenType.ZUO),
     ("加",         TokenType.JIA),
     ("減",         TokenType.JIAN),
     ("乘",         TokenType.CHENG),
     ("除",         TokenType.CHU),
+    ("餘",         TokenType.YU_SHU),
     ("負",         TokenType.FU),
     ("且",         TokenType.QIE),
     ("或",         TokenType.HUO),
     ("非",         TokenType.FEI),
+    ("於",         TokenType.YU),
     ("完",         TokenType.WANBI),
 ]
 
@@ -183,34 +227,22 @@ PUNCTUATION = {
     "。": TokenType.WANHAO,
     "（": TokenType.ZUOKUO,
     "）": TokenType.YOUKUO,
-    "［": TokenType.FANG_ZUO,   # 全形左中括號
-    "］": TokenType.FANG_YOU,   # 全形右中括號
-    "，": TokenType.DOUHAO,     # 全形逗號
-    # 也支援半形方括號與逗號，方便鍵盤輸入
+    "［": TokenType.FANG_ZUO,
+    "］": TokenType.FANG_YOU,
+    "，": TokenType.DOUHAO,
     "[":  TokenType.FANG_ZUO,
     "]":  TokenType.FANG_YOU,
     ",":  TokenType.DOUHAO,
 }
 
 
+# ============================================================
+# LEXER
+# ============================================================
+
 class Lexer:
-    """
-    詞法分析器：將原始碼字串轉換為 Token 串列。
-
-    掃描策略：
-    1. 跳過空白與注釋（# 開頭到行尾）
-    2. 嘗試匹配關鍵字（長優先）
-    3. 嘗試匹配標點符號
-    4. 嘗試匹配字串字面值（「...」）
-    5. 嘗試匹配整數字面值
-    6. 嘗試匹配識別字（中文字符）
-    7. 其他字元報錯
-    """
-
-    # 中文字元 Unicode 範圍（CJK 統一表意文字）
-    # 排除數字與ASCII，識別字只能由中文組成
-    CJK_PATTERN = re.compile(r'[\u4e00-\u9fff\u3400-\u4dbf\U00020000-\U0002a6df]')
-    DIGIT_PATTERN = re.compile(r'[0-9]')
+    CJK = re.compile(r'[\u4e00-\u9fff\u3400-\u4dbf]')
+    DIG = re.compile(r'[0-9]')
 
     def __init__(self, source: str):
         self.source = source
@@ -219,770 +251,634 @@ class Lexer:
         self.col = 1
         self.tokens: List[Token] = []
 
-    def current_char(self) -> Optional[str]:
-        if self.pos < len(self.source):
-            return self.source[self.pos]
-        return None
+    def cur(self): return self.source[self.pos] if self.pos < len(self.source) else None
+    def peek(self, n=1): p=self.pos+n; return self.source[p] if p<len(self.source) else None
 
-    def peek(self, offset: int = 1) -> Optional[str]:
-        p = self.pos + offset
-        if p < len(self.source):
-            return self.source[p]
-        return None
-
-    def advance(self, n: int = 1) -> str:
-        chars = self.source[self.pos:self.pos + n]
-        for ch in chars:
-            if ch == '\n':
-                self.line += 1
-                self.col = 1
-            else:
-                self.col += 1
+    def advance(self, n=1):
+        s = self.source[self.pos:self.pos+n]
+        for c in s:
+            if c == '\n': self.line += 1; self.col = 1
+            else: self.col += 1
         self.pos += n
-        return chars
+        return s
 
-    def skip_whitespace_and_comments(self):
+    def skip(self):
         while self.pos < len(self.source):
-            ch = self.current_char()
-            if ch in (' ', '\t', '\r', '\n', '\u3000'):  # \u3000 = 全形空格
-                self.advance()
-            elif ch == '#':
-                # 單行注釋
-                while self.pos < len(self.source) and self.current_char() != '\n':
-                    self.advance()
-            else:
-                break
+            c = self.cur()
+            if c in ' \t\r\n\u3000': self.advance()
+            elif c == '#':
+                while self.pos < len(self.source) and self.cur() != '\n': self.advance()
+            else: break
 
-    def try_match_keyword(self) -> Optional[Token]:
-        """嘗試在目前位置匹配關鍵字（長優先）"""
-        line, col = self.line, self.col
+    def try_keyword(self):
+        ln, col = self.line, self.col
         for kw, tt in KEYWORDS:
-            end = self.pos + len(kw)
-            if self.source[self.pos:end] == kw:
-                # 確認不是更長識別字的一部分（後面不能緊跟中文）
-                after = self.source[end:end+1]
-                if after and self.CJK_PATTERN.match(after):
-                    # 若後面還有中文，則這不是獨立關鍵字
-                    # 特例：「完」不需要後面沒中文（因為通常前面有「。」）
-                    if tt != TokenType.WANBI:
-                        continue
+            e = self.pos + len(kw)
+            if self.source[self.pos:e] == kw:
+                after = self.source[e:e+1]
+                if after and self.CJK.match(after) and tt != TokenType.WANBI:
+                    continue
                 self.advance(len(kw))
-                return Token(tt, kw, line, col)
-        return None
+                return Token(tt, kw, ln, col)
 
-    def try_match_punctuation(self) -> Optional[Token]:
-        ch = self.current_char()
-        if ch and ch in PUNCTUATION:
-            line, col = self.line, self.col
+    def try_punct(self):
+        c = self.cur()
+        if c and c in PUNCTUATION:
+            ln, col = self.line, self.col
             self.advance()
-            return Token(PUNCTUATION[ch], ch, line, col)
-        return None
+            return Token(PUNCTUATION[c], c, ln, col)
 
-    def try_match_string_literal(self) -> Optional[Token]:
-        """匹配字串字面值：「...」（使用全形書名號）"""
-        ch = self.current_char()
-        if ch != '「':
-            return None
-        line, col = self.line, self.col
-        self.advance()  # 跳過 「
+    def try_string(self):
+        if self.cur() != '「': return None
+        ln, col = self.line, self.col
+        self.advance()
         buf = []
         while self.pos < len(self.source):
-            c = self.current_char()
-            if c == '」':
-                self.advance()  # 跳過 」
-                return Token(TokenType.STR_LIT, ''.join(buf), line, col)
-            elif c == '\n':
-                raise LexerError("字串字面值中不允許換行", self.line, self.col)
-            else:
-                buf.append(c)
-                self.advance()
-        raise LexerError("字串字面值未結束，缺少 」", line, col)
+            c = self.cur()
+            if c == '」': self.advance(); return Token(TokenType.STR_LIT, ''.join(buf), ln, col)
+            if c == '\n': raise LexerError("字串未結束", self.line, self.col)
+            buf.append(c); self.advance()
+        raise LexerError("字串未結束，缺少 」", ln, col)
 
-    def try_match_integer(self) -> Optional[Token]:
-        ch = self.current_char()
-        if not ch or not self.DIGIT_PATTERN.match(ch):
-            return None
-        line, col = self.line, self.col
+    def try_int(self):
+        c = self.cur()
+        if not c or not self.DIG.match(c): return None
+        ln, col = self.line, self.col
         buf = []
-        while self.pos < len(self.source) and self.DIGIT_PATTERN.match(self.current_char()):
-            buf.append(self.current_char())
-            self.advance()
-        return Token(TokenType.INT_LIT, int(''.join(buf)), line, col)
+        while self.pos < len(self.source) and self.DIG.match(self.cur()):
+            buf.append(self.cur()); self.advance()
+        return Token(TokenType.INT_LIT, int(''.join(buf)), ln, col)
 
-    def try_match_identifier(self) -> Optional[Token]:
-        ch = self.current_char()
-        if not ch or not self.CJK_PATTERN.match(ch):
-            return None
-        line, col = self.line, self.col
+    def try_ident(self):
+        c = self.cur()
+        if not c or not self.CJK.match(c): return None
+        ln, col = self.line, self.col
         buf = []
         while self.pos < len(self.source):
-            c = self.current_char()
-            if self.CJK_PATTERN.match(c) or self.DIGIT_PATTERN.match(c):
-                buf.append(c)
-                self.advance()
-            else:
-                break
-        name = ''.join(buf)
-        return Token(TokenType.IDENT, name, line, col)
+            c = self.cur()
+            if self.CJK.match(c) or self.DIG.match(c): buf.append(c); self.advance()
+            else: break
+        return Token(TokenType.IDENT, ''.join(buf), ln, col)
 
-    def tokenize(self) -> List[Token]:
-        """主掃描迴圈，回傳完整 Token 串列"""
+    def tokenize(self):
         while True:
-            self.skip_whitespace_and_comments()
+            self.skip()
             if self.pos >= len(self.source):
-                self.tokens.append(Token(TokenType.EOF, None, self.line, self.col))
-                break
-
-            line, col = self.line, self.col
-            tok = (
-                self.try_match_keyword()       or
-                self.try_match_punctuation()   or
-                self.try_match_string_literal()or
-                self.try_match_integer()       or
-                self.try_match_identifier()
-            )
-            if tok:
-                self.tokens.append(tok)
-            else:
-                ch = self.current_char()
-                raise LexerError(f"無法識別的字元：{ch!r}", line, col)
-
+                self.tokens.append(Token(TokenType.EOF, None, self.line, self.col)); break
+            ln, col = self.line, self.col
+            tok = self.try_keyword() or self.try_punct() or self.try_string() or self.try_int() or self.try_ident()
+            if tok: self.tokens.append(tok)
+            else: raise LexerError(f"無法識別：{self.cur()!r}", ln, col)
         return self.tokens
 
 
 # ============================================================
-# AST 節點定義
+# AST 節點
 # ============================================================
 
 @dataclass
-class ASTNode:
-    pass
-
+class ASTNode: pass
 
 @dataclass
 class Program(ASTNode):
-    """程式根節點"""
     statements: List[ASTNode]
 
-
+# ── 語句 ──────────────────────────────────────────────────────
 @dataclass
 class DeclareStmt(ASTNode):
-    """
-    宣告語句：令 <名稱> 為 <類型> 等於 <表達式>
-    type_annotation: 'int' | 'str' | 'int_list' | 'str_list'
-    """
-    name: str
-    type_annotation: str
-    expr: ASTNode
-    line: int
-
+    name: str; type_annotation: str; expr: ASTNode; line: int
 
 @dataclass
 class AssignStmt(ASTNode):
-    """
-    賦值語句：令 <名稱> 等於 <表達式>
-    """
-    name: str
-    expr: ASTNode
-    line: int
-
+    name: str; expr: ASTNode; line: int
 
 @dataclass
 class IndexAssignStmt(ASTNode):
-    """
-    索引賦值語句：令 <名稱>［<索引>］ 等於 <表達式>
-    例：令 數組［1］ 等於 50。
-    """
-    name: str
-    index: ASTNode
-    expr: ASTNode
-    line: int
-
+    name: str; index: ASTNode; expr: ASTNode; line: int
 
 @dataclass
 class PrintStmt(ASTNode):
-    """顯示語句：顯示 <表達式>"""
-    expr: ASTNode
-    line: int
+    expr: ASTNode; line: int
 
+@dataclass
+class AskStmt(ASTNode):
+    """詢問 「提示」 並存入 變數。"""
+    prompt: str; varname: str; line: int
 
 @dataclass
 class IfStmt(ASTNode):
-    """
-    判斷語句：如果（條件）則：區塊。完  [否則：區塊。完]
-    """
-    condition: ASTNode
-    then_block: List[ASTNode]
-    else_block: Optional[List[ASTNode]]
-    line: int
-
+    condition: ASTNode; then_block: List[ASTNode]
+    else_block: Optional[List[ASTNode]]; line: int
 
 @dataclass
 class WhileStmt(ASTNode):
-    """
-    循環語句：當（條件）就：區塊。完
-    """
-    condition: ASTNode
-    body: List[ASTNode]
-    line: int
-
+    condition: ASTNode; body: List[ASTNode]; line: int
 
 @dataclass
-class BinOp(ASTNode):
-    """二元運算：left op right"""
-    op: str      # '+', '-', '*', '/', '==', '!=', '>', '<', '>=', '<=', '&&', '||'
-    left: ASTNode
-    right: ASTNode
+class ForStmt(ASTNode):
+    """從 start 到 end 以 varname 做：區塊"""
+    start: ASTNode; end: ASTNode; varname: str; body: List[ASTNode]; line: int
+
+@dataclass
+class ReturnStmt(ASTNode):
+    expr: ASTNode; line: int
+
+@dataclass
+class BreakStmt(ASTNode):
     line: int
 
+@dataclass
+class ContinueStmt(ASTNode):
+    line: int
+
+@dataclass
+class AppendStmt(ASTNode):
+    """添加 expr 於 listname。"""
+    expr: ASTNode; listname: str; line: int
+
+@dataclass
+class PopStmt(ASTNode):
+    """彈出 listname。 / 彈出 listname 並存入 varname。"""
+    listname: str; varname: Optional[str]; line: int
+
+@dataclass
+class TryStmt(ASTNode):
+    try_block: List[ASTNode]; except_block: List[ASTNode]; line: int
+
+@dataclass
+class FuncDefStmt(ASTNode):
+    name: str; params: List[str]; body: List[ASTNode]; line: int
+
+@dataclass
+class ImportStmt(ASTNode):
+    module: str; line: int
+
+# ── 表達式 ────────────────────────────────────────────────────
+@dataclass
+class BinOp(ASTNode):
+    op: str; left: ASTNode; right: ASTNode; line: int
 
 @dataclass
 class UnaryOp(ASTNode):
-    """一元運算：op expr"""
-    op: str      # 'neg', 'not'
-    operand: ASTNode
-    line: int
-
+    op: str; operand: ASTNode; line: int
 
 @dataclass
 class IntLiteral(ASTNode):
-    value: int
-    line: int
-
+    value: int; line: int
 
 @dataclass
 class StrLiteral(ASTNode):
-    value: str
-    line: int
-
+    value: str; line: int
 
 @dataclass
 class ListLiteral(ASTNode):
-    """
-    列表字面值：［expr, expr, ...］
-    elements: 元素表達式串列
-    """
-    elements: List[ASTNode]
-    line: int
-
+    elements: List[ASTNode]; line: int
 
 @dataclass
 class IndexExpr(ASTNode):
-    """
-    索引存取表達式：expr［index_expr］
-    例：數組［0］ 或 數組［索引 加 1］
-    """
-    target: ASTNode   # 被索引的物件（通常是 Identifier）
-    index: ASTNode    # 索引表達式
-    line: int
-
+    target: ASTNode; index: ASTNode; line: int
 
 @dataclass
 class Identifier(ASTNode):
-    name: str
-    line: int
+    name: str; line: int
+
+@dataclass
+class CallExpr(ASTNode):
+    """函數呼叫：識別字（引數, ...）"""
+    name: str; args: List[ASTNode]; line: int
+
+@dataclass
+class BuiltinCall(ASTNode):
+    """內建函數呼叫：長度（expr）"""
+    func: str; args: List[ASTNode]; line: int
 
 
 # ============================================================
-# 語法分析錯誤
-# ============================================================
-
-class ParseError(Exception):
-    def __init__(self, msg, token: Token):
-        super().__init__(
-            f"[語法錯誤] 第{token.line}行 第{token.col}列：{msg}，"
-            f"遇到了 {token.type.name}({token.value!r})"
-        )
-        self.token = token
-
-
-# ============================================================
-# PARSER 語法分析器（遞迴下降）
+# PARSER
 # ============================================================
 
 class Parser:
-    """
-    語法分析器：將 Token 串列轉換為 AST。
+    def __init__(self, tokens):
+        self.tokens = tokens; self.pos = 0
 
-    使用遞迴下降（Recursive Descent）策略，
-    每個文法規則對應一個 parse_* 方法。
-    """
-
-    def __init__(self, tokens: List[Token]):
-        self.tokens = tokens
-        self.pos = 0
-
-    # ── 輔助方法 ──────────────────────────────────────────
-
-    def current(self) -> Token:
-        return self.tokens[self.pos]
-
-    def peek(self, offset: int = 1) -> Token:
-        p = self.pos + offset
-        if p < len(self.tokens):
-            return self.tokens[p]
-        return self.tokens[-1]  # EOF
-
-    def advance(self) -> Token:
-        tok = self.tokens[self.pos]
-        if tok.type != TokenType.EOF:
-            self.pos += 1
-        return tok
-
-    def expect(self, tt: TokenType) -> Token:
-        tok = self.current()
-        if tok.type != tt:
-            raise ParseError(f"預期 {tt.value!r}", tok)
+    def cur(self): return self.tokens[self.pos]
+    def peek(self, n=1):
+        p = self.pos+n
+        return self.tokens[p] if p < len(self.tokens) else self.tokens[-1]
+    def advance(self):
+        t = self.tokens[self.pos]
+        if t.type != TokenType.EOF: self.pos += 1
+        return t
+    def expect(self, tt):
+        t = self.cur()
+        if t.type != tt: raise ParseError(f"預期 {tt.value!r}", t)
         return self.advance()
+    def match(self, *types): return self.cur().type in types
 
-    def match(self, *types: TokenType) -> bool:
-        return self.current().type in types
+    # ── 程式 ────────────────────────────────────────────────
 
-    # ── 程式入口 ──────────────────────────────────────────
-
-    def parse(self) -> Program:
-        stmts = self.parse_statement_list()
-        self.expect(TokenType.EOF)
+    def parse(self):
+        stmts = []
+        while not self.match(TokenType.EOF):
+            if self.match(TokenType.DINGY):
+                stmts.append(self.parse_funcdef())
+            elif self.match(TokenType.YINRU):
+                stmts.append(self.parse_import())
+            else:
+                stmts.append(self.parse_stmt())
         return Program(statements=stmts)
 
-    def parse_statement_list(self, in_block: bool = False) -> List[ASTNode]:
-        """
-        語句列表 ::= 語句 { 語句 }
-        in_block=True：遇到「。完」或「否則」時停止（供區塊內部使用）
-        in_block=False：遇到 EOF 停止（頂層使用）
-        """
+    def parse_stmt_list(self, in_block=False):
         stmts = []
         while True:
-            tok = self.current()
-            if tok.type == TokenType.EOF:
-                break
+            t = self.cur()
+            if t.type == TokenType.EOF: break
             if in_block:
-                # 「。完」是區塊結束標記，停止收集語句
-                if tok.type == TokenType.WANHAO and self.peek().type == TokenType.WANBI:
-                    break
-                # 「否則」表示 then 區塊結束，交給上層 parse_if 處理
-                if tok.type == TokenType.FOUZE:
-                    break
-            stmts.append(self.parse_statement())
+                if t.type == TokenType.WANHAO and self.peek().type == TokenType.WANBI: break
+                if t.type in (TokenType.FOUZE, TokenType.RUOCHUCUO): break
+            stmts.append(self.parse_stmt())
         return stmts
 
-    # ── 語句解析 ──────────────────────────────────────────
+    def parse_block(self):
+        self.expect(TokenType.MAOHAO)
+        stmts = self.parse_stmt_list(in_block=True)
+        self.expect(TokenType.WANHAO)
+        self.expect(TokenType.WANBI)
+        return stmts
 
-    def parse_statement(self) -> ASTNode:
-        """
-        語句 ::= 宣告語句 | 賦值語句 | 索引賦值語句 | 顯示語句 | 判斷語句 | 循環語句
-        """
-        tok = self.current()
+    # ── 函數定義 ─────────────────────────────────────────────
 
-        if tok.type == TokenType.LING:
-            return self.parse_declare_or_assign()
-        elif tok.type == TokenType.XIANSHI:
-            return self.parse_print()
-        elif tok.type == TokenType.RUGUO:
-            return self.parse_if()
-        elif tok.type == TokenType.DANG:
-            return self.parse_while()
-        else:
-            raise ParseError("預期語句開頭（令、顯示、如果、當）", tok)
+    def parse_funcdef(self):
+        ln = self.cur().line
+        self.expect(TokenType.DINGY)
+        name = self.expect(TokenType.IDENT).value
+        self.expect(TokenType.ZUOKUO)
+        params = []
+        if not self.match(TokenType.YOUKUO):
+            params.append(self.expect(TokenType.IDENT).value)
+            while self.match(TokenType.DOUHAO):
+                self.advance()
+                params.append(self.expect(TokenType.IDENT).value)
+        self.expect(TokenType.YOUKUO)
+        self.expect(TokenType.WEI)
+        body = self.parse_block()
+        return FuncDefStmt(name=name, params=params, body=body, line=ln)
 
-    def parse_declare_or_assign(self) -> ASTNode:
-        """
-        宣告語句 ::= 「令」 識別字 「為」 類型 「等於」 表達式 「。」
-        賦值語句 ::= 「令」 識別字 「等於」 表達式 「。」
-        索引賦值 ::= 「令」 識別字 「［」 表達式 「］」 「等於」 表達式 「。」
+    def parse_import(self):
+        ln = self.cur().line
+        self.expect(TokenType.YINRU)
+        name = self.expect(TokenType.IDENT).value
+        self.expect(TokenType.WANHAO)
+        return ImportStmt(module=name, line=ln)
 
-        向前看第2、3個 Token 來區分：
-          令 X 為 ...       → 宣告（純量 或 列表）
-          令 X 等於 ...     → 賦值
-          令 X ［ ...       → 索引賦值
-        """
-        line = self.current().line
+    # ── 語句 ────────────────────────────────────────────────
+
+    def parse_stmt(self):
+        t = self.cur()
+        if   t.type == TokenType.LING:     return self.parse_ling()
+        elif t.type == TokenType.XIANSHI:  return self.parse_print()
+        elif t.type == TokenType.XUNWEN:   return self.parse_ask()
+        elif t.type == TokenType.RUGUO:    return self.parse_if()
+        elif t.type == TokenType.DANG:     return self.parse_while()
+        elif t.type == TokenType.CONG:     return self.parse_for()
+        elif t.type == TokenType.HUITAN:   return self.parse_return()
+        elif t.type == TokenType.TIAOCHU:  return self.parse_break()
+        elif t.type == TokenType.JIXU:     return self.parse_continue()
+        elif t.type == TokenType.TIANJIA:  return self.parse_append()
+        elif t.type == TokenType.TANCHU:   return self.parse_pop()
+        elif t.type == TokenType.SHICHANG: return self.parse_try()
+        else: raise ParseError("預期語句開頭", t)
+
+    def parse_ling(self):
+        ln = self.cur().line
         self.expect(TokenType.LING)
-        name_tok = self.expect(TokenType.IDENT)
-        name = name_tok.value
+        name = self.expect(TokenType.IDENT).value
 
-        # ── 索引賦值：令 X［expr］ 等於 expr。 ──────────────
+        # 索引賦值：令 X［idx］ 等於 expr。
         if self.match(TokenType.FANG_ZUO):
-            self.advance()                      # 吃掉「［」
-            index_expr = self.parse_expression()
-            self.expect(TokenType.FANG_YOU)     # 「］」
-            self.expect(TokenType.DENGYU)       # 「等於」
-            val_expr = self.parse_expression()
+            self.advance()
+            idx = self.parse_expr()
+            self.expect(TokenType.FANG_YOU)
+            self.expect(TokenType.DENGYU)
+            val = self.parse_expr()
             self.expect(TokenType.WANHAO)
-            return IndexAssignStmt(name=name, index=index_expr, expr=val_expr, line=line)
+            return IndexAssignStmt(name=name, index=idx, expr=val, line=ln)
 
-        # ── 宣告：令 X 為 類型 等於 expr。 ─────────────────
+        # 宣告：令 X 為 類型 等於 expr。
         if self.match(TokenType.WEI):
-            self.advance()  # 吃掉「為」
-            type_tok = self.current()
-            type_ann_map = {
+            self.advance()
+            type_map = {
                 TokenType.ZHENSHU:           'int',
                 TokenType.ZIFUCHUAN:         'str',
                 TokenType.ZHENSHU_LIEBIAO:   'int_list',
                 TokenType.ZIFUCHUAN_LIEBIAO: 'str_list',
             }
-            if type_tok.type not in type_ann_map:
-                raise ParseError("預期類型（整數、字串、整數列表、字串列表）", type_tok)
-            type_ann = type_ann_map[type_tok.type]
-            self.advance()
+            tt = self.cur()
+            if tt.type not in type_map: raise ParseError("預期類型", tt)
+            ann = type_map[tt.type]; self.advance()
             self.expect(TokenType.DENGYU)
-            expr = self.parse_expression()
+            expr = self.parse_expr()
             self.expect(TokenType.WANHAO)
-            return DeclareStmt(name=name, type_annotation=type_ann, expr=expr, line=line)
+            return DeclareStmt(name=name, type_annotation=ann, expr=expr, line=ln)
 
-        # ── 賦值：令 X 等於 expr。 ─────────────────────────
+        # 賦值：令 X 等於 expr。
         if self.match(TokenType.DENGYU):
-            self.advance()  # 吃掉「等於」
-            expr = self.parse_expression()
+            self.advance()
+            expr = self.parse_expr()
             self.expect(TokenType.WANHAO)
-            return AssignStmt(name=name, expr=expr, line=line)
+            return AssignStmt(name=name, expr=expr, line=ln)
 
-        raise ParseError("「令」之後預期「為」（宣告）、「等於」（賦值）或「［」（索引賦值）",
-                         self.current())
+        raise ParseError("「令」後預期「為」、「等於」或「［」", self.cur())
 
-    def parse_print(self) -> PrintStmt:
-        """顯示語句 ::= 「顯示」 表達式 「。」"""
-        line = self.current().line
+    def parse_print(self):
+        ln = self.cur().line
         self.expect(TokenType.XIANSHI)
-        expr = self.parse_expression()
+        expr = self.parse_expr()
         self.expect(TokenType.WANHAO)
-        return PrintStmt(expr=expr, line=line)
+        return PrintStmt(expr=expr, line=ln)
 
-    def parse_if(self) -> IfStmt:
-        """
-        判斷語句 ::= 「如果」 「（」 條件表達式 「）」 「則」
-                      「：」 語句列表 「。」 「完」
-                     [ 「否則」 「：」 語句列表 「。」 「完」 ]
+    def parse_ask(self):
+        ln = self.cur().line
+        self.expect(TokenType.XUNWEN)
+        prompt_tok = self.expect(TokenType.STR_LIT)
+        self.expect(TokenType.BINGCUNRU)
+        varname = self.expect(TokenType.IDENT).value
+        self.expect(TokenType.WANHAO)
+        return AskStmt(prompt=prompt_tok.value, varname=varname, line=ln)
 
-        注意：如果後面有「否則」，then 區塊的 「。完」後面緊接 「否則」；
-              如果沒有「否則」，則整個 if 語句結束於 「。完」。
-        """
-        line = self.current().line
+    def parse_if(self):
+        ln = self.cur().line
         self.expect(TokenType.RUGUO)
         self.expect(TokenType.ZUOKUO)
-        cond = self.parse_condition()
+        cond = self.parse_cond()
         self.expect(TokenType.YOUKUO)
         self.expect(TokenType.ZE)
-        # 解析 then 區塊（：語句列表。完）
-        then_block = self.parse_if_block()
-
-        else_block = None
+        then = self.parse_if_block()
+        else_ = None
         if self.match(TokenType.FOUZE):
-            self.advance()  # 吃掉「否則」
-            else_block = self.parse_if_block()
+            self.advance()
+            else_ = self.parse_if_block()
+        return IfStmt(condition=cond, then_block=then, else_block=else_, line=ln)
 
-        return IfStmt(condition=cond, then_block=then_block, else_block=else_block, line=line)
-
-    def parse_if_block(self) -> List[ASTNode]:
-        """
-        解析區塊（：語句列表。完）
-        利用 in_block=True，自動在「。完」或「否則」前停止
-        """
+    def parse_if_block(self):
         self.expect(TokenType.MAOHAO)
-        stmts = self.parse_statement_list(in_block=True)
-        self.expect(TokenType.WANHAO)   # 「。」
-        self.expect(TokenType.WANBI)    # 「完」
+        stmts = self.parse_stmt_list(in_block=True)
+        self.expect(TokenType.WANHAO)
+        self.expect(TokenType.WANBI)
         return stmts
 
-    def parse_while(self) -> WhileStmt:
-        """
-        循環語句 ::= 「當」 「（」 條件表達式 「）」 「就」
-                      「：」 語句列表 「。」 「完」
-        """
-        line = self.current().line
+    def parse_while(self):
+        ln = self.cur().line
         self.expect(TokenType.DANG)
         self.expect(TokenType.ZUOKUO)
-        cond = self.parse_condition()
+        cond = self.parse_cond()
         self.expect(TokenType.YOUKUO)
         self.expect(TokenType.JIU)
         body = self.parse_block()
-        return WhileStmt(condition=cond, body=body, line=line)
+        return WhileStmt(condition=cond, body=body, line=ln)
 
-    def parse_block(self) -> List[ASTNode]:
-        """
-        區塊 ::= 「：」 語句列表 「。」 「完」
-        """
-        self.expect(TokenType.MAOHAO)
-        stmts = self.parse_statement_list(in_block=True)
-        self.expect(TokenType.WANHAO)   # 「。」
-        self.expect(TokenType.WANBI)    # 「完」
-        return stmts
+    def parse_for(self):
+        """從 start 到 end 以 varname 做：區塊"""
+        ln = self.cur().line
+        self.expect(TokenType.CONG)
+        start = self.parse_expr()
+        self.expect(TokenType.DAO)
+        end = self.parse_expr()
+        self.expect(TokenType.YI)
+        varname = self.expect(TokenType.IDENT).value
+        self.expect(TokenType.ZUO)
+        body = self.parse_block()
+        return ForStmt(start=start, end=end, varname=varname, body=body, line=ln)
 
-    # ── 條件表達式 ────────────────────────────────────────
+    def parse_return(self):
+        ln = self.cur().line
+        self.expect(TokenType.HUITAN)
+        expr = self.parse_expr()
+        self.expect(TokenType.WANHAO)
+        return ReturnStmt(expr=expr, line=ln)
 
-    def parse_condition(self) -> ASTNode:
-        """
-        條件表達式 ::= 比較表達式 { (「且」|「或」) 比較表達式 }
-                     | 「非」 「（」 條件表達式 「）」
-        """
-        if self.match(TokenType.FEI):
-            line = self.current().line
+    def parse_break(self):
+        ln = self.cur().line
+        self.expect(TokenType.TIAOCHU)
+        self.expect(TokenType.WANHAO)
+        return BreakStmt(line=ln)
+
+    def parse_continue(self):
+        ln = self.cur().line
+        self.expect(TokenType.JIXU)
+        self.expect(TokenType.WANHAO)
+        return ContinueStmt(line=ln)
+
+    def parse_append(self):
+        """添加 expr 於 listname。"""
+        ln = self.cur().line
+        self.expect(TokenType.TIANJIA)
+        expr = self.parse_expr()
+        self.expect(TokenType.YU)
+        name = self.expect(TokenType.IDENT).value
+        self.expect(TokenType.WANHAO)
+        return AppendStmt(expr=expr, listname=name, line=ln)
+
+    def parse_pop(self):
+        """彈出 listname。 / 彈出 listname 並存入 varname。"""
+        ln = self.cur().line
+        self.expect(TokenType.TANCHU)
+        name = self.expect(TokenType.IDENT).value
+        varname = None
+        if self.match(TokenType.BINGCUNRU):
             self.advance()
+            varname = self.expect(TokenType.IDENT).value
+        self.expect(TokenType.WANHAO)
+        return PopStmt(listname=name, varname=varname, line=ln)
+
+    def parse_try(self):
+        ln = self.cur().line
+        self.expect(TokenType.SHICHANG)
+        self.expect(TokenType.MAOHAO)
+        try_stmts = self.parse_stmt_list(in_block=True)
+        self.expect(TokenType.WANHAO)
+        self.expect(TokenType.WANBI)
+        self.expect(TokenType.RUOCHUCUO)
+        self.expect(TokenType.MAOHAO)
+        exc_stmts = self.parse_stmt_list(in_block=True)
+        self.expect(TokenType.WANHAO)
+        self.expect(TokenType.WANBI)
+        return TryStmt(try_block=try_stmts, except_block=exc_stmts, line=ln)
+
+    # ── 條件表達式 ───────────────────────────────────────────
+
+    def parse_cond(self):
+        if self.match(TokenType.FEI):
+            ln = self.cur().line; self.advance()
             self.expect(TokenType.ZUOKUO)
-            inner = self.parse_condition()
+            inner = self.parse_cond()
             self.expect(TokenType.YOUKUO)
-            return UnaryOp(op='not', operand=inner, line=line)
-
-        left = self.parse_comparison()
-
+            return UnaryOp(op='not', operand=inner, line=ln)
+        left = self.parse_cmp()
         while self.match(TokenType.QIE, TokenType.HUO):
             op_tok = self.advance()
             op = '&&' if op_tok.type == TokenType.QIE else '||'
-            right = self.parse_comparison()
+            right = self.parse_cmp()
             left = BinOp(op=op, left=left, right=right, line=op_tok.line)
-
         return left
 
-    def parse_comparison(self) -> ASTNode:
-        """
-        比較表達式 ::= 表達式 [ 比較運算子 表達式 ]
-        比較運算子 ::= 「等於」|「不等於」|「大於」|「小於」|「大於等於」|「小於等於」
-        """
-        left = self.parse_expression()
-
-        cmp_map = {
-            TokenType.DENGYU:       '==',
-            TokenType.BUDENGYU:     '!=',
-            TokenType.DAYÜ:         '>',
-            TokenType.XIAOYÜ:       '<',
-            TokenType.DAYÜDENGYU:   '>=',
-            TokenType.XIAOYÜDENGYU: '<=',
+    def parse_cmp(self):
+        left = self.parse_expr()
+        cmp = {
+            TokenType.DENGYU: '==', TokenType.BUDENGYU: '!=',
+            TokenType.DAYÜ: '>', TokenType.XIAOYÜ: '<',
+            TokenType.DAYÜDENGYU: '>=', TokenType.XIAOYÜDENGYU: '<=',
         }
-
-        if self.current().type in cmp_map:
+        if self.cur().type in cmp:
             op_tok = self.advance()
-            op = cmp_map[op_tok.type]
-            right = self.parse_expression()
-            return BinOp(op=op, left=left, right=right, line=op_tok.line)
-
+            right = self.parse_expr()
+            return BinOp(op=cmp[op_tok.type], left=left, right=right, line=op_tok.line)
         return left
 
-    # ── 算術表達式 ────────────────────────────────────────
+    # ── 算術表達式 ───────────────────────────────────────────
 
-    def parse_expression(self) -> ASTNode:
-        """表達式 ::= 加減表達式"""
-        return self.parse_add_sub()
+    def parse_expr(self): return self.parse_add_sub()
 
-    def parse_add_sub(self) -> ASTNode:
-        """加減表達式 ::= 乘除表達式 { (「加」|「減」) 乘除表達式 }"""
+    def parse_add_sub(self):
         left = self.parse_mul_div()
         while self.match(TokenType.JIA, TokenType.JIAN):
-            op_tok = self.advance()
-            op = '+' if op_tok.type == TokenType.JIA else '-'
+            op = self.advance()
             right = self.parse_mul_div()
-            left = BinOp(op=op, left=left, right=right, line=op_tok.line)
+            left = BinOp(op='+' if op.type==TokenType.JIA else '-', left=left, right=right, line=op.line)
         return left
 
-    def parse_mul_div(self) -> ASTNode:
-        """乘除表達式 ::= 一元表達式 { (「乘」|「除」) 一元表達式 }"""
+    def parse_mul_div(self):
+        left = self.parse_power()
+        while self.match(TokenType.CHENG, TokenType.CHU, TokenType.YU_SHU):
+            op = self.advance()
+            right = self.parse_power()
+            sym = {'乘':'*','除':'/','餘':'%'}[op.value]
+            left = BinOp(op=sym, left=left, right=right, line=op.line)
+        return left
+
+    def parse_power(self):
         left = self.parse_unary()
-        while self.match(TokenType.CHENG, TokenType.CHU):
-            op_tok = self.advance()
-            op = '*' if op_tok.type == TokenType.CHENG else '/'
+        if self.match(TokenType.CIFANG):
+            op = self.advance()
             right = self.parse_unary()
-            left = BinOp(op=op, left=left, right=right, line=op_tok.line)
+            return BinOp(op='**', left=left, right=right, line=op.line)
         return left
 
-    def parse_unary(self) -> ASTNode:
-        """一元表達式 ::= [ 「負」 ] 後綴表達式"""
+    def parse_unary(self):
         if self.match(TokenType.FU):
-            line = self.current().line
-            self.advance()
-            operand = self.parse_postfix()
-            return UnaryOp(op='neg', operand=operand, line=line)
+            ln = self.cur().line; self.advance()
+            return UnaryOp(op='neg', operand=self.parse_postfix(), line=ln)
         return self.parse_postfix()
 
-    def parse_postfix(self) -> ASTNode:
-        """
-        後綴表達式 ::= 基本表達式 { 「［」 表達式 「］」 }
-        支援鏈式索引：數組［0］［1］ 等
-        """
+    def parse_postfix(self):
         node = self.parse_primary()
         while self.match(TokenType.FANG_ZUO):
-            line = self.current().line
-            self.advance()               # 吃掉「［」
-            index = self.parse_expression()
-            self.expect(TokenType.FANG_YOU)  # 「］」
-            node = IndexExpr(target=node, index=index, line=line)
+            ln = self.cur().line; self.advance()
+            idx = self.parse_expr()
+            self.expect(TokenType.FANG_YOU)
+            node = IndexExpr(target=node, index=idx, line=ln)
         return node
 
-    def parse_primary(self) -> ASTNode:
-        """
-        基本表達式 ::= 整數字面值
-                     | 字串字面值
-                     | 列表字面值
-                     | 識別字
-                     | 「（」 表達式 「）」
-        """
-        tok = self.current()
-
-        if tok.type == TokenType.INT_LIT:
-            self.advance()
-            return IntLiteral(value=tok.value, line=tok.line)
-
-        elif tok.type == TokenType.STR_LIT:
-            self.advance()
-            return StrLiteral(value=tok.value, line=tok.line)
-
-        elif tok.type == TokenType.FANG_ZUO:
-            # 列表字面值：［ expr，expr，... ］
+    def parse_primary(self):
+        t = self.cur()
+        if t.type == TokenType.INT_LIT:
+            self.advance(); return IntLiteral(value=t.value, line=t.line)
+        elif t.type == TokenType.STR_LIT:
+            self.advance(); return StrLiteral(value=t.value, line=t.line)
+        elif t.type == TokenType.FANG_ZUO:
             return self.parse_list_literal()
-
-        elif tok.type == TokenType.IDENT:
+        elif t.type == TokenType.CHANGDU:
+            # 長度（expr）
+            ln = t.line; self.advance()
+            self.expect(TokenType.ZUOKUO)
+            arg = self.parse_expr()
+            self.expect(TokenType.YOUKUO)
+            return BuiltinCall(func='長度', args=[arg], line=ln)
+        elif t.type == TokenType.IDENT:
             self.advance()
-            return Identifier(name=tok.value, line=tok.line)
-
-        elif tok.type == TokenType.ZUOKUO:
+            # 函數呼叫：識別字（引數...）
+            if self.match(TokenType.ZUOKUO):
+                ln = t.line; self.advance()
+                args = []
+                if not self.match(TokenType.YOUKUO):
+                    args.append(self.parse_expr())
+                    while self.match(TokenType.DOUHAO):
+                        self.advance(); args.append(self.parse_expr())
+                self.expect(TokenType.YOUKUO)
+                return CallExpr(name=t.value, args=args, line=ln)
+            return Identifier(name=t.value, line=t.line)
+        elif t.type == TokenType.ZUOKUO:
             self.advance()
-            expr = self.parse_expression()
+            expr = self.parse_expr()
             self.expect(TokenType.YOUKUO)
             return expr
-
         else:
-            raise ParseError("預期表達式（數字、字串、列表、識別字 或 括號）", tok)
+            raise ParseError("預期表達式", t)
 
-    def parse_list_literal(self) -> ListLiteral:
-        """
-        列表字面值 ::= 「［」 [ 表達式 { 「，」 表達式 } ] 「］」
-        """
-        line = self.current().line
-        self.expect(TokenType.FANG_ZUO)  # 「［」
-        elements = []
+    def parse_list_literal(self):
+        ln = self.cur().line
+        self.expect(TokenType.FANG_ZUO)
+        elems = []
         if not self.match(TokenType.FANG_YOU):
-            elements.append(self.parse_expression())
+            elems.append(self.parse_expr())
             while self.match(TokenType.DOUHAO):
-                self.advance()           # 吃掉「，」
-                elements.append(self.parse_expression())
-        self.expect(TokenType.FANG_YOU)  # 「］」
-        return ListLiteral(elements=elements, line=line)
+                self.advance(); elems.append(self.parse_expr())
+        self.expect(TokenType.FANG_YOU)
+        return ListLiteral(elements=elems, line=ln)
 
 
 # ============================================================
 # AST 美化輸出
 # ============================================================
 
-def pretty_print_ast(node: ASTNode, indent: int = 0) -> str:
-    prefix = "  " * indent
+def pretty_print_ast(node, indent=0):
+    p = "  " * indent
+    n = type(node).__name__
     if isinstance(node, Program):
-        lines = [f"{prefix}程式"]
-        for s in node.statements:
-            lines.append(pretty_print_ast(s, indent + 1))
-        return "\n".join(lines)
-    elif isinstance(node, DeclareStmt):
-        return (f"{prefix}宣告 [{node.name} : {node.type_annotation}]\n"
-                + pretty_print_ast(node.expr, indent + 1))
+        return p+"程式\n"+"\n".join(pretty_print_ast(s,indent+1) for s in node.statements)
+    elif isinstance(node, FuncDefStmt):
+        body = "\n".join(pretty_print_ast(s,indent+2) for s in node.body)
+        return f"{p}函數定義[{node.name}({','.join(node.params)})]\n{body}"
+    elif isinstance(node, (DeclareStmt,)):
+        return f"{p}宣告[{node.name}:{node.type_annotation}]\n{pretty_print_ast(node.expr,indent+1)}"
     elif isinstance(node, AssignStmt):
-        return (f"{prefix}賦值 [{node.name}]\n"
-                + pretty_print_ast(node.expr, indent + 1))
-    elif isinstance(node, IndexAssignStmt):
-        return (f"{prefix}索引賦值 [{node.name}]\n"
-                + f"{prefix}  索引：\n" + pretty_print_ast(node.index, indent + 2) + "\n"
-                + f"{prefix}  值：\n"   + pretty_print_ast(node.expr,  indent + 2))
+        return f"{p}賦值[{node.name}]\n{pretty_print_ast(node.expr,indent+1)}"
     elif isinstance(node, PrintStmt):
-        return f"{prefix}顯示\n" + pretty_print_ast(node.expr, indent + 1)
-    elif isinstance(node, IfStmt):
-        lines = [f"{prefix}如果"]
-        lines.append(f"{prefix}  條件：")
-        lines.append(pretty_print_ast(node.condition, indent + 2))
-        lines.append(f"{prefix}  則：")
-        for s in node.then_block:
-            lines.append(pretty_print_ast(s, indent + 2))
-        if node.else_block:
-            lines.append(f"{prefix}  否則：")
-            for s in node.else_block:
-                lines.append(pretty_print_ast(s, indent + 2))
-        return "\n".join(lines)
-    elif isinstance(node, WhileStmt):
-        lines = [f"{prefix}當"]
-        lines.append(f"{prefix}  條件：")
-        lines.append(pretty_print_ast(node.condition, indent + 2))
-        lines.append(f"{prefix}  就：")
-        for s in node.body:
-            lines.append(pretty_print_ast(s, indent + 2))
-        return "\n".join(lines)
+        return f"{p}顯示\n{pretty_print_ast(node.expr,indent+1)}"
+    elif isinstance(node, AskStmt):
+        return f"{p}詢問[提示={node.prompt!r} → {node.varname}]"
+    elif isinstance(node, ReturnStmt):
+        return f"{p}回傳\n{pretty_print_ast(node.expr,indent+1)}"
+    elif isinstance(node, BreakStmt):   return f"{p}跳出"
+    elif isinstance(node, ContinueStmt):return f"{p}繼續"
+    elif isinstance(node, AppendStmt):
+        return f"{p}添加 → {node.listname}\n{pretty_print_ast(node.expr,indent+1)}"
+    elif isinstance(node, PopStmt):
+        return f"{p}彈出[{node.listname}{'→'+node.varname if node.varname else ''}]"
+    elif isinstance(node, TryStmt):
+        tb = "\n".join(pretty_print_ast(s,indent+2) for s in node.try_block)
+        eb = "\n".join(pretty_print_ast(s,indent+2) for s in node.except_block)
+        return f"{p}嘗試\n{tb}\n{p}  若出錯\n{eb}"
+    elif isinstance(node, IntLiteral):  return f"{p}整數({node.value})"
+    elif isinstance(node, StrLiteral):  return f"{p}字串({node.value!r})"
+    elif isinstance(node, Identifier):  return f"{p}識別字({node.name})"
+    elif isinstance(node, CallExpr):
+        args = ", ".join(pretty_print_ast(a,0) for a in node.args)
+        return f"{p}呼叫[{node.name}({args})]"
+    elif isinstance(node, BuiltinCall):
+        args = ", ".join(pretty_print_ast(a,0) for a in node.args)
+        return f"{p}內建[{node.func}({args})]"
     elif isinstance(node, BinOp):
-        return (f"{prefix}二元運算({node.op})\n"
-                + pretty_print_ast(node.left, indent + 1) + "\n"
-                + pretty_print_ast(node.right, indent + 1))
+        return f"{p}二元({node.op})\n{pretty_print_ast(node.left,indent+1)}\n{pretty_print_ast(node.right,indent+1)}"
     elif isinstance(node, UnaryOp):
-        return (f"{prefix}一元運算({node.op})\n"
-                + pretty_print_ast(node.operand, indent + 1))
-    elif isinstance(node, IntLiteral):
-        return f"{prefix}整數({node.value})"
-    elif isinstance(node, StrLiteral):
-        return f"{prefix}字串({node.value!r})"
+        return f"{p}一元({node.op})\n{pretty_print_ast(node.operand,indent+1)}"
     elif isinstance(node, ListLiteral):
-        lines = [f"{prefix}列表[{len(node.elements)}個元素]"]
-        for i, el in enumerate(node.elements):
-            lines.append(f"{prefix}  [{i}]: " + pretty_print_ast(el, 0))
-        return "\n".join(lines)
+        elems = "\n".join(f"{p}  [{i}]:{pretty_print_ast(e,0)}" for i,e in enumerate(node.elements))
+        return f"{p}列表[{len(node.elements)}]\n{elems}"
     elif isinstance(node, IndexExpr):
-        return (f"{prefix}索引存取\n"
-                + f"{prefix}  物件：\n" + pretty_print_ast(node.target, indent + 2) + "\n"
-                + f"{prefix}  索引：\n" + pretty_print_ast(node.index,  indent + 2))
-    elif isinstance(node, Identifier):
-        return f"{prefix}識別字({node.name})"
+        return f"{p}索引\n{pretty_print_ast(node.target,indent+1)}\n{pretty_print_ast(node.index,indent+1)}"
+    elif isinstance(node, ForStmt):
+        body = "\n".join(pretty_print_ast(s,indent+2) for s in node.body)
+        return f"{p}從到[{node.varname}]\n{pretty_print_ast(node.start,indent+1)}\n{pretty_print_ast(node.end,indent+1)}\n{body}"
     else:
-        return f"{prefix}未知節點({type(node).__name__})"
-
-
-# ============================================================
-# 測試入口
-# ============================================================
-
-SAMPLE_CODE = """
-# 繁體中文程式語言 — 範例程式
-
-# 變數宣告
-令 計數 為 整數 等於 1。
-令 訊息 為 字串 等於 「哈囉，世界」。
-
-# 顯示字串
-顯示 訊息。
-
-# 算術運算
-令 結果 為 整數 等於 計數 加 5 乘 2。
-顯示 結果。
-
-# 條件判斷（如果/否則，各自有獨立的 。完）
-如果（結果 大於 10）則：
-  顯示 「結果大於十」。
-。完否則：
-  顯示 「結果不超過十」。
-。完
-
-# 循環
-當（計數 小於等於 3）就：
-  顯示 計數。
-  令 計數 等於 計數 加 1。
-。完
-"""
-
-
-def run_demo(source: str = SAMPLE_CODE):
-    print("=" * 60)
-    print("【繁體中文程式語言】詞法 + 語法分析示範")
-    print("=" * 60)
-
-    print("\n── 原始碼 ──────────────────────────────────")
-    print(source.strip())
-
-    # 詞法分析
-    print("\n── Token 串列 ──────────────────────────────")
-    lexer = Lexer(source)
-    tokens = lexer.tokenize()
-    for tok in tokens:
-        if tok.type != TokenType.EOF:
-            print(f"  {tok}")
-
-    # 語法分析
-    print("\n── 抽象語法樹 (AST) ────────────────────────")
-    parser = Parser(tokens)
-    ast = parser.parse()
-    print(pretty_print_ast(ast))
-    print("\n分析完成！✓")
-    return ast
-
-
-if __name__ == "__main__":
-    run_demo()
+        return f"{p}{n}"

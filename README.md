@@ -14,12 +14,14 @@
 # 課程作業繳交報告
 
 ## 📌 AI 使用與原創聲明
- - **是否使用 AI：** 是
+ - **是否使用 AI：** 使用 AI ，並透過對話理解程式中的內容
  - **對應習題使用的 AI 工具、AI對話記錄連結：**
 
-        [習題1](https://github.com/Dong-HuiYun/_sp/tree/master/Ch1)：Claude、Gemini
-        [習題2](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C2_%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80)：Claude、Gemini
-        [習題3](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C3)：
+      [習題1](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C1)：[Google AI Studio 對話連結](https://aistudio.google.com/app/prompts?state=%7B%22ids%22:%5B%221chDpbNUfRiMtLmSJMenMdjvk-iIIkVxJ%22%5D,%22action%22:%22open%22,%22userId%22:%22104108532823114063447%22,%22resourceKeys%22:%7B%7D%7D&usp=sharing,)
+
+      [習題2](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C2_%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80)：Claude、Gemini
+
+      [習題3](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C3)：
         習題4：
         習題5：
         習題6：
@@ -31,16 +33,21 @@
 ## 習題與作業內容
 
 ### 習題 1 -- 請為 p0 編譯器加上 while 語法，並說明其函數呼叫機制是怎麼運作的
-- **完成狀況：** 已完成
-- **程式碼/檔案路徑：** `path/to/exercise1/`
-- **成果說明：**
-  *(請在此處說明 while 語法的實作邏輯，以及函數呼叫機制的運作原理)*
+
+- **完成狀況：** 使用 AI ，理解了 EBNF 的語法定義，以及執行 while 迴圈下的編譯器生成的中間碼呼叫機制的運作方式。
+
+- **程式碼/檔案路徑：** [習題1](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C1)
+
+- **成果說明：**[成果説明](https://github.com/Dong-HuiYun/_sp/blob/master/%E7%BF%92%E9%A1%8C1/README.md)
 
 ---
 
 ### 習題 2 -- 請重新設計一個全新的程式語言，並寫出其編譯器或解釋器 (建議用 AI)
-- **完成狀況：** 已完成
+
+- **完成狀況：** 使用 AI，實作了繁體程式語言的編寫，程式目前已能夠支持基礎運算與資料形態、條件判斷、雙重循環系統、中斷及繼續迴圈的精細控制、函數式編程、 動態列表操作、健壯性與模組化。另外還新增了GUI圖形化界面，語法部分高亮顯示，並存在指令工作箱，可以在忘記語法時使用；執行報錯時2，能把出錯的那一行程式碼以紅底注釋，方便修改；還新增了快捷鍵支援，儲存、開啟檔名為 `.中文` 的程式碼。界面還有 UI 的設計，擺脫 Python 預設外觀。
+
 - **程式碼/檔案路徑：** `path/to/exercise2/`
+
 - **成果說明：**
   *(請在此處說明您設計的語言語法、特性，以及編譯器/解釋器的架構)*
 

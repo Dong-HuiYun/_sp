@@ -2,183 +2,756 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>C0 視覺化電腦架構教學平台</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>C0 視覺化電腦架構教學平台 | 互動式模擬器</title>
     <style>
-        :root { --primary: #2563eb; --bg: #f8fafc; --panel: #ffffff; }
-        body { font-family: system-ui, sans-serif; background: var(--bg); display: flex; flex-direction: column; height: 100vh; margin: 0; }
-        header { background: var(--primary); color: white; padding: 1rem; text-align: center; font-size: 1.5rem; font-weight: bold; }
-        main { display: grid; grid-template-columns: 350px 1fr 300px; gap: 1rem; padding: 1rem; flex: 1; overflow: hidden; }
-        .panel { background: var(--panel); border-radius: 8px; border: 1px solid #ddd; display: flex; flex-direction: column; overflow: hidden; }
-        .panel-header { background: #eee; padding: 0.5rem; font-weight: bold; border-bottom: 1px solid #ddd; }
-        textarea { flex: 1; border: none; padding: 1rem; font-family: monospace; font-size: 1rem; outline: none; resize: none; }
-        .memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 10px; overflow-y: auto; }
-        .mem-cell { border: 1px solid #eee; padding: 5px; text-align: center; font-size: 0.8rem; border-radius: 4px; }
-        .mem-cell.active { background: #fef08a; border-color: #eab308; }
-        .registers { padding: 10px; }
-        .reg-item { display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #f0f0f0; font-family: monospace; }
-        .controls { padding: 1rem; display: flex; gap: 10px; background: white; border-top: 1px solid #ddd; justify-content: center; }
-        button { padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px; border: none; background: var(--primary); color: white; }
-        button:disabled { background: #ccc; }
-        .log { height: 100px; background: #1e293b; color: #34d399; padding: 10px; font-family: monospace; font-size: 0.9rem; overflow-y: auto; }
-        .highlight-pc { background: #dbeafe; font-weight: bold; }
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-glow: rgba(59,130,246,0.3);
+            --bg-page: #f1f5f9;
+            --panel-bg: rgba(255,255,255,0.92);
+            --border-light: #e2e8f0;
+            --text-dark: #0f172a;
+            --text-muted: #475569;
+            --accent-gold: #f59e0b;
+            --log-bg: #0f172a;
+            --log-text: #a7f3d0;
+            --shadow-card: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.02);
+            --transition: all 0.2s ease;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, 'Segoe UI', 'Noto Sans TC', sans-serif;
+            background: var(--bg-page);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: var(--text-dark);
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 8px; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 8px; }
+
+        header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            border-bottom: 1px solid #334155;
+        }
+        .logo {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            background: linear-gradient(120deg, #ffffff, #94a3f8);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .badge {
+            background: #334155;
+            padding: 0.2rem 0.8rem;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #cbd5e1;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 360px 1fr 320px;
+            gap: 1.2rem;
+            padding: 1.2rem;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(2px);
+            border-radius: 1.25rem;
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+        .panel-header {
+            background: #f8fafc;
+            padding: 0.85rem 1.2rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid #eef2ff;
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        textarea {
+            flex: 1;
+            border: none;
+            padding: 1.2rem;
+            font-family: 'Fira Code', 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            background: #fefefe;
+            outline: none;
+            resize: none;
+            color: #1e293b;
+            tab-size: 4;
+        }
+        textarea:focus {
+            background: #ffffff;
+            box-shadow: inset 0 0 0 2px var(--primary-glow);
+        }
+
+        .registers-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 1rem;
+        }
+        .reg-card {
+            background: #f1f5f9;
+            border-radius: 16px;
+            padding: 0.6rem 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            transition: all 0.1s ease;
+            border: 1px solid transparent;
+        }
+        .reg-card span:first-child {
+            font-family: monospace;
+            font-weight: 700;
+            font-size: 0.9rem;
+            background: #e2e8f0;
+            padding: 0.2rem 0.6rem;
+            border-radius: 30px;
+        }
+        .reg-card span:last-child {
+            font-family: 'Fira Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #0f172a;
+            background: white;
+            padding: 0.2rem 0.7rem;
+            border-radius: 20px;
+            min-width: 55px;
+            text-align: center;
+        }
+        .pc-highlight {
+            background: #fef9c3;
+            border-left: 4px solid var(--accent-gold);
+        }
+
+        .memory-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 1rem;
+            overflow-y: auto;
+            background: #fcfcfd;
+        }
+        .mem-cell {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 8px 4px;
+            text-align: center;
+            font-family: monospace;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.1s;
+            color: #334155;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            cursor: pointer;
+        }
+        .mem-cell.active {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            color: #b45309;
+            transform: scale(1.02);
+            box-shadow: 0 4px 8px rgba(245,158,11,0.2);
+            font-weight: bold;
+        }
+        .mem-cell[data-modified="true"] {
+            background: #dcfce7;
+            border-color: #86efac;
+            transition: 0.15s;
+        }
+
+        .controls {
+            padding: 0.8rem 1.5rem;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        button {
+            background: var(--primary);
+            border: none;
+            padding: 0.6rem 1.4rem;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        button:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59,130,246,0.3);
+        }
+        button:active {
+            transform: translateY(1px);
+        }
+        button:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .reset-btn {
+            background: #475569;
+        }
+        .reset-btn:hover:not(:disabled) {
+            background: #334155;
+        }
+
+        .log {
+            background: var(--log-bg);
+            color: var(--log-text);
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            padding: 0.8rem;
+            height: 140px;
+            overflow-y: auto;
+            border-radius: 12px;
+            margin: 12px;
+            margin-top: 0;
+            border: 1px solid #334155;
+        }
+        .log div {
+            border-bottom: 1px solid #334155;
+            padding: 4px 0;
+            font-size: 0.75rem;
+            word-break: break-all;
+        }
+
+        .extra-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f1f5f9;
+            padding: 6px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.75rem;
+        }
+        .speed-slider {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        input[type="range"] {
+            width: 100px;
+            cursor: pointer;
+        }
+
+        .status-bubble {
+            background: #22c55e20;
+            border-radius: 30px;
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #15803d;
+        }
+
+        @media (max-width: 900px) {
+            main { grid-template-columns: 1fr; gap: 1rem; }
+            .controls { gap: 0.6rem; }
+        }
     </style>
 </head>
 <body>
 
-<header>C0 Computer Visualizer</header>
+<header>
+    <div class="logo">⚡ C0 視覺化電腦架構教學平台</div>
+    <div class="badge">RISC-like ISA | 互動式模擬器</div>
+</header>
 
 <main>
-    <!-- 左側：程式碼編輯器 -->
     <div class="panel">
-        <div class="panel-header">Assembly Code (C0)</div>
-        <textarea id="code">LDI R1 10
+        <div class="panel-header">
+            📝 組合語言編輯器 (C0)
+            <span style="font-size:0.7rem; margin-left: auto;">支援 LDI, ADD, SUBI, BNZ, HALT</span>
+        </div>
+        <textarea id="code" spellcheck="false">; 範例: 計算 1+2+...+10 總和
+LDI R1 10
 LDI R2 0
 loop:
 ADD R2 R1
 SUBI R1 1
 BNZ R1 loop
 HALT</textarea>
-    </div>
-
-    <!-- 中間：暫存器與執行狀態 -->
-    <div class="panel">
-        <div class="panel-header">CPU States & ALU</div>
-        <div class="registers" id="reg-container">
-            <!-- 暫存器動態生成 -->
+        <div class="extra-bar">
+            <span>💡 編輯後請點選「Assemble」</span>
+            <span class="status-bubble" id="asm-status">未組譯</span>
         </div>
-        <div class="panel-header">Execution Log</div>
-        <div class="log" id="log-output">System Ready.</div>
     </div>
 
-    <!-- 右側：記憶體 -->
     <div class="panel">
-        <div class="panel-header">Memory Blocks</div>
-        <div class="memory-grid" id="mem-container">
-            <!-- 記憶體動態生成 -->
+        <div class="panel-header">
+            🖥️ CPU 狀態 & 算術邏輯單元
+            <span style="margin-left: auto; font-size:0.7rem; font-weight:normal;">單步執行模式</span>
+        </div>
+        <div class="registers-grid" id="reg-container"></div>
+        <div class="panel-header" style="border-top: 1px solid #eef2ff; margin-top: 0px;">
+            📜 執行日誌
+        </div>
+        <div class="log" id="log-output">
+            <div>✅ 系統就緒。點擊「Assemble」載入程式。</div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            🧠 資料記憶體 (64 words)
+            <button id="clearMemBtn" style="background:#94a3b8; padding: 0.2rem 0.6rem; font-size:0.7rem; margin-left: auto;">清除記憶體</button>
+        </div>
+        <div class="memory-grid" id="mem-container"></div>
+        <div class="extra-bar">
+            <span>🔍 點擊記憶體數值可編輯</span>
+            <div class="speed-slider">
+                <span>🐢 步進延遲</span>
+                <input type="range" id="step-delay" min="0" max="800" value="200" step="10">
+                <span id="delay-value" style="min-width: 40px;">200ms</span>
+            </div>
         </div>
     </div>
 </main>
 
 <div class="controls">
-    <button onclick="assemble()">1. Assemble</button>
-    <button id="step-btn" onclick="stepVM()" disabled>2. Step Execution</button>
-    <button onclick="resetVM()">Reset</button>
+    <button onclick="assembleProgram()" id="assemble-btn">🔧 1. 組譯 (Assemble)</button>
+    <button id="step-btn" onclick="stepVMWithDelay()" disabled>▶ 2. 單步執行</button>
+    <button onclick="resetVMFull()" id="reset-btn" class="reset-btn">🔄 重置 VM</button>
+    <button onclick="runContinuously()" id="run-btn" disabled>⚡ 連續執行 (Run)</button>
+    <button onclick="stopRun()" id="stop-btn" disabled>⏹️ 停止</button>
 </div>
 
 <script>
-    // 虛擬機狀態
-    let R = new Int32Array(8); // 8 個暫存器
+    // ----- 虛擬機核心狀態 ------
+    let R = new Int32Array(8);
     let PC = 0;
-    let MEM = new Int32Array(64); // 64 格記憶體
+    let MEM = new Int32Array(64);
     let instructions = [];
     let labels = {};
+    let runningInterval = null;
+    let stepDelay = 200;
+    let programEnded = false;  // 新增：標記程式是否已結束
+
+    // DOM 元素
+    const logOutput = document.getElementById('log-output');
+    const stepBtn = document.getElementById('step-btn');
+    const runBtn = document.getElementById('run-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const asmStatusSpan = document.getElementById('asm-status');
+    const delaySlider = document.getElementById('step-delay');
+    const delaySpan = document.getElementById('delay-value');
 
     function initUI() {
-        const regDiv = document.getElementById('reg-container');
-        regDiv.innerHTML = `<div class="reg-item"><span>PC (Program Counter)</span><span id="pc-val">0</span></div>`;
-        for(let i=0; i<8; i++) {
-            regDiv.innerHTML += `<div class="reg-item"><span>R${i}</span><span id="r${i}-val">0</span></div>`;
-        }
+        const regContainer = document.getElementById('reg-container');
+        regContainer.innerHTML = '';
+        const pcCard = document.createElement('div');
+        pcCard.className = 'reg-card pc-highlight';
+        pcCard.innerHTML = `<span>📌 PC</span><span id="pc-val">0</span>`;
+        regContainer.appendChild(pcCard);
         
+        for(let i=0; i<8; i++) {
+            const card = document.createElement('div');
+            card.className = 'reg-card';
+            card.innerHTML = `<span>R${i}</span><span id="r${i}-val">0</span>`;
+            regContainer.appendChild(card);
+        }
+
         const memDiv = document.getElementById('mem-container');
         memDiv.innerHTML = '';
         for(let i=0; i<64; i++) {
-            memDiv.innerHTML += `<div class="mem-cell" id="mem-${i}">0</div>`;
+            const cell = document.createElement('div');
+            cell.className = 'mem-cell';
+            cell.textContent = '0';
+            cell.setAttribute('data-addr', i);
+            cell.setAttribute('data-modified', 'false');
+            cell.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const addr = parseInt(cell.getAttribute('data-addr'));
+                const currentVal = MEM[addr];
+                const newVal = prompt(`編輯記憶體位址 ${addr} (十進位)`, currentVal);
+                if(newVal !== null && !isNaN(parseInt(newVal))) {
+                    const intVal = parseInt(newVal);
+                    MEM[addr] = intVal;
+                    updateMemoryUI();
+                    logMessage(`✏️ 手動修改 MEM[${addr}] = ${intVal}`);
+                }
+            });
+            memDiv.appendChild(cell);
+        }
+        updateMemoryUI();
+        updateRegUI();
+    }
+
+    function updateRegUI() {
+        document.getElementById('pc-val').innerText = PC;
+        for(let i=0; i<8; i++) {
+            const el = document.getElementById(`r${i}-val`);
+            if(el) el.innerText = R[i];
+        }
+        document.querySelectorAll('.mem-cell').forEach(cell => cell.classList.remove('active'));
+        if(PC >= 0 && PC < 64) {
+            const targetCell = document.querySelector(`.mem-cell[data-addr='${PC}']`);
+            if(targetCell) targetCell.classList.add('active');
         }
     }
 
-    function log(msg) {
-        const output = document.getElementById('log-output');
-        output.innerHTML += `<div>> ${msg}</div>`;
-        output.scrollTop = output.scrollHeight;
+    function updateMemoryUI() {
+        for(let i=0; i<64; i++) {
+            const cell = document.querySelector(`.mem-cell[data-addr='${i}']`);
+            if(cell) {
+                const oldVal = parseInt(cell.textContent);
+                const newVal = MEM[i];
+                cell.textContent = newVal;
+                if(oldVal !== newVal) {
+                    cell.setAttribute('data-modified', 'true');
+                    setTimeout(() => {
+                        if(cell) cell.setAttribute('data-modified', 'false');
+                    }, 500);
+                }
+            }
+        }
     }
 
-    function assemble() {
-        const rawCode = document.getElementById('code').value.split('\n');
+    function logMessage(msg) {
+        const logDiv = logOutput;
+        const newEntry = document.createElement('div');
+        newEntry.textContent = `> ${msg}`;
+        logDiv.appendChild(newEntry);
+        newEntry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        while(logDiv.children.length > 60) {
+            logDiv.removeChild(logDiv.firstChild);
+        }
+    }
+
+    // 更新按鈕狀態（根據程式是否已組譯、是否結束）
+    function updateButtonsState() {
+        const hasProgram = instructions.length > 0;
+        const isRunning = runningInterval !== null;
+        
+        if (isRunning) {
+            stepBtn.disabled = true;
+            runBtn.disabled = true;
+            stopBtn.disabled = false;
+        } else {
+            stopBtn.disabled = true;
+            if (hasProgram && !programEnded && PC < instructions.length) {
+                stepBtn.disabled = false;
+                runBtn.disabled = false;
+            } else {
+                stepBtn.disabled = true;
+                runBtn.disabled = true;
+            }
+        }
+    }
+
+    function assembleProgram() {
+        if(runningInterval) stopRun();
+        
+        const rawCode = document.getElementById('code').value;
+        const lines = rawCode.split(/\r?\n/);
         instructions = [];
         labels = {};
-        let currentPos = 0;
+        let pos = 0;
+        let errorFlag = false;
 
-        // 第一遍：掃描 Labels
-        rawCode.forEach(line => {
-            line = line.trim();
-            if(!line || line.startsWith(';')) return;
+        // 第一遍：掃描標籤
+        for(let i=0; i<lines.length; i++) {
+            let line = lines[i].trim();
+            if(line === '' || line.startsWith(';')) continue;
             if(line.endsWith(':')) {
-                labels[line.replace(':', '')] = currentPos;
+                const labelName = line.slice(0, -1).trim();
+                if(labelName) {
+                    if(labels.hasOwnProperty(labelName)) {
+                        logMessage(`⚠️ 警告: 重複標籤 ${labelName}, 使用第一個位置`);
+                    } else {
+                        labels[labelName] = pos;
+                    }
+                }
             } else {
-                instructions.push(line);
-                currentPos++;
+                pos++;
             }
-        });
+        }
 
-        resetVM();
-        document.getElementById('step-btn').disabled = false;
-        log("Assembled successfully. Total " + instructions.length + " instructions.");
-    }
+        // 第二遍：收集指令
+        pos = 0;
+        for(let i=0; i<lines.length; i++) {
+            let line = lines[i].trim();
+            if(line === '' || line.startsWith(';')) continue;
+            if(line.endsWith(':')) continue;
+            
+            let commentIndex = line.indexOf(';');
+            if(commentIndex !== -1) line = line.substring(0, commentIndex).trim();
+            if(line === '') continue;
+            
+            const upperLine = line.toUpperCase();
+            const validOps = ['LDI', 'ADD', 'SUBI', 'BNZ', 'HALT'];
+            const opCandidate = upperLine.split(/\s+/)[0];
+            if(!validOps.includes(opCandidate)) {
+                logMessage(`❌ 組譯錯誤: 未知指令 "${opCandidate}" 在第 ${i+1} 行`);
+                errorFlag = true;
+                break;
+            }
+            instructions.push(line);
+            pos++;
+        }
 
-    function resetVM() {
-        R.fill(0);
-        PC = 0;
-        document.getElementById('step-btn').disabled = true;
-        updateUI();
-        log("VM Reset.");
-    }
-
-    function updateUI() {
-        document.getElementById('pc-val').innerText = PC;
-        for(let i=0; i<8; i++) document.getElementById(`r${i}-val`).innerText = R[i];
-        
-        // 高亮當前記憶體（模擬 PC 指向）
-        document.querySelectorAll('.mem-cell').forEach(c => c.classList.remove('active'));
-        if(PC < 64) document.getElementById(`mem-${PC}`).classList.add('active');
-    }
-
-    function stepVM() {
-        if(PC >= instructions.length) {
-            log("End of program.");
+        if(errorFlag) {
+            asmStatusSpan.innerText = '組譯失敗';
+            asmStatusSpan.style.background = '#fee2e2';
+            asmStatusSpan.style.color = '#b91c1c';
+            updateButtonsState();
+            logMessage(`❌ 組譯失敗，請修正語法後再試。`);
             return;
         }
 
-        let line = instructions[PC];
-        let parts = line.split(/\s+/);
-        let op = parts[0].toUpperCase();
-        
-        log(`Executing: ${line}`);
-
-        switch(op) {
-            case 'LDI': // LDI R1 10
-                let regIdx = parseInt(parts[1].replace('R',''));
-                R[regIdx] = parseInt(parts[2]);
-                PC++;
-                break;
-            case 'ADD': // ADD R2 R1
-                let dest = parseInt(parts[1].replace('R',''));
-                let src = parseInt(parts[2].replace('R',''));
-                R[dest] += R[src];
-                PC++;
-                break;
-            case 'SUBI': // SUBI R1 1
-                let rSub = parseInt(parts[1].replace('R',''));
-                R[rSub] -= parseInt(parts[2]);
-                PC++;
-                break;
-            case 'BNZ': // BNZ R1 loop
-                let rCheck = parseInt(parts[1].replace('R',''));
-                if(R[rCheck] !== 0) PC = labels[parts[2]];
-                else PC++;
-                break;
-            case 'HALT':
-                log("HALT reached.");
-                document.getElementById('step-btn').disabled = true;
-                break;
-            default:
-                log("Unknown OP: " + op);
-                PC++;
-        }
-        updateUI();
+        // 重置虛擬機
+        resetVMFull(false);
+        programEnded = false;
+        asmStatusSpan.innerText = '✓ 已組譯';
+        asmStatusSpan.style.background = '#dcfce7';
+        asmStatusSpan.style.color = '#166534';
+        logMessage(`✅ 組譯成功！共 ${instructions.length} 條指令，標籤: ${Object.keys(labels).join(', ') || '無'}`);
+        updateButtonsState();
+        updateRegUI();
+        updateMemoryUI();
     }
 
+    function resetVMFull(showLog = true) {
+        if(runningInterval) {
+            clearInterval(runningInterval);
+            runningInterval = null;
+        }
+        R.fill(0);
+        PC = 0;
+        programEnded = false;
+        MEM.fill(0);
+        updateMemoryUI();
+        updateRegUI();
+        if(showLog) logMessage(`🔄 系統重置：所有暫存器歸零，記憶體歸零。`);
+        updateButtonsState();
+    }
+
+    // 執行單步，回傳是否成功執行了指令（未結束）
+    function executeOneStep() {
+        if(!instructions.length) {
+            logMessage(`⚠️ 尚未組譯程式，請先點擊「Assemble」。`);
+            return false;
+        }
+        
+        if(PC >= instructions.length) {
+            if(!programEnded) {
+                programEnded = true;
+                logMessage(`🏁 程式執行完畢 (已達指令末端)。`);
+            }
+            updateButtonsState();
+            return false;
+        }
+
+        let line = instructions[PC];
+        let originalPC = PC;
+        let parts = line.trim().split(/\s+/);
+        let op = parts[0].toUpperCase();
+        let execDesc = "";
+
+        try {
+            switch(op) {
+                case 'LDI': {
+                    let reg = parseInt(parts[1].replace('R',''));
+                    let imm = parseInt(parts[2]);
+                    if(isNaN(reg) || isNaN(imm)) throw new Error(`LDI 格式錯誤: ${line}`);
+                    R[reg] = imm;
+                    PC++;
+                    execDesc = `LDI R${reg} ← ${imm}`;
+                    break;
+                }
+                case 'ADD': {
+                    let dest = parseInt(parts[1].replace('R',''));
+                    let src = parseInt(parts[2].replace('R',''));
+                    if(isNaN(dest) || isNaN(src)) throw new Error(`ADD 格式錯誤`);
+                    R[dest] = R[dest] + R[src];
+                    PC++;
+                    execDesc = `ADD R${dest} += R${src}  → ${R[dest]}`;
+                    break;
+                }
+                case 'SUBI': {
+                    let reg = parseInt(parts[1].replace('R',''));
+                    let imm = parseInt(parts[2]);
+                    if(isNaN(reg) || isNaN(imm)) throw new Error(`SUBI 格式錯誤`);
+                    R[reg] = R[reg] - imm;
+                    PC++;
+                    execDesc = `SUBI R${reg} - ${imm} → ${R[reg]}`;
+                    break;
+                }
+                case 'BNZ': {
+                    let regCheck = parseInt(parts[1].replace('R',''));
+                    let targetLabel = parts[2];
+                    if(isNaN(regCheck)) throw new Error(`BNZ 暫存器錯誤`);
+                    if(labels[targetLabel] === undefined) throw new Error(`標籤 ${targetLabel} 未定義`);
+                    if(R[regCheck] !== 0) {
+                        let oldPC = PC;
+                        PC = labels[targetLabel];
+                        execDesc = `BNZ R${regCheck} (值=${R[regCheck]} ≠ 0) 跳轉至 ${targetLabel} (${oldPC} → ${PC})`;
+                    } else {
+                        PC++;
+                        execDesc = `BNZ R${regCheck}=0 不跳轉，繼續下一指令`;
+                    }
+                    break;
+                }
+                case 'HALT': {
+                    PC++;
+                    execDesc = `⛔ HALT 停止執行`;
+                    logMessage(`[${originalPC}] ${line}  → ${execDesc}`);
+                    programEnded = true;
+                    updateRegUI();
+                    updateButtonsState();
+                    logMessage(`⛔ 程式因 HALT 指令終止。`);
+                    return false;
+                }
+                default:
+                    throw new Error(`未知操作碼 ${op}`);
+            }
+            logMessage(`[${originalPC}] ${line}  → ${execDesc}`);
+            updateRegUI();
+            return true;
+        } catch(err) {
+            logMessage(`💥 執行錯誤: ${err.message} , 指令: ${line}`);
+            PC++;
+            updateRegUI();
+            return false;
+        }
+    }
+
+    function stepVMWithDelay() {
+        if(runningInterval) stopRun();
+        if(programEnded) {
+            logMessage(`⚠️ 程式已結束，請按重置後再執行。`);
+            return;
+        }
+        executeOneStep();
+        updateMemoryUI();
+        updateButtonsState();
+    }
+
+    function runContinuously() {
+        if(runningInterval) return;
+        if(!instructions.length) {
+            logMessage(`請先組譯有效的程式，再執行連續模式。`);
+            return;
+        }
+        if(programEnded || PC >= instructions.length) {
+            logMessage(`程式已結束，請按重置後再執行。`);
+            return;
+        }
+        
+        // 開始連續執行
+        runningInterval = setInterval(() => {
+            // 檢查是否應該停止
+            if(programEnded || PC >= instructions.length) {
+                stopRun();
+                if(!programEnded && PC >= instructions.length) {
+                    programEnded = true;
+                    logMessage(`🏁 程式執行完畢。`);
+                }
+                updateButtonsState();
+                return;
+            }
+            
+            const executed = executeOneStep();
+            updateMemoryUI();
+            
+            if(!executed || programEnded) {
+                stopRun();
+                updateButtonsState();
+            }
+        }, stepDelay);
+        
+        updateButtonsState();
+        logMessage(`▶️ 開始連續執行 (間隔 ${stepDelay}ms)`);
+    }
+
+    function stopRun() {
+        if(runningInterval) {
+            clearInterval(runningInterval);
+            runningInterval = null;
+            logMessage(`⏸️ 連續執行已停止。`);
+        }
+        updateButtonsState();
+    }
+
+    function clearMemoryOnly() {
+        MEM.fill(0);
+        updateMemoryUI();
+        logMessage(`🧹 手動清除記憶體 (全部歸零)`);
+    }
+
+    function initDelayControl() {
+        if(delaySlider) {
+            stepDelay = parseInt(delaySlider.value);
+            delaySpan.innerText = stepDelay + "ms";
+            delaySlider.addEventListener('input', (e) => {
+                stepDelay = parseInt(e.target.value);
+                delaySpan.innerText = stepDelay + "ms";
+                if(runningInterval) {
+                    stopRun();
+                    runContinuously();
+                }
+            });
+        }
+    }
+
+    window.addEventListener('beforeunload', () => {
+        if(runningInterval) clearInterval(runningInterval);
+    });
+
+    document.getElementById('clearMemBtn').addEventListener('click', clearMemoryOnly);
+    
     initUI();
+    initDelayControl();
+    resetVMFull(true);
+    asmStatusSpan.innerText = '未組譯';
+    asmStatusSpan.style.background = '#f1f5f9';
+    asmStatusSpan.style.color = '#475569';
+    updateButtonsState();
+    logMessage("🎓 歡迎使用 C0 視覺化平台！編輯組合語言 -> Assemble -> 單步執行 或 連續執行。");
 </script>
 </body>
 </html>

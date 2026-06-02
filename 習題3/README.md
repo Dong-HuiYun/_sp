@@ -18,6 +18,8 @@
 *   **技術棧**：HTML5, CSS3 (Flexbox/Grid), Vanilla JavaScript。
 *   **應用場景**：計算機組織課程教學、學習彙編語言基礎。
 
+    ![電腦架構教學](images/2.png)
+
 ### 2. `rpg_game` - CodeQuest 碼農地下城 (v4.0 瘋狂版)
 這是一個基於 Python 命令列 (CLI) 的文字冒險遊戲，將軟體工程師的日常挑戰轉化為 RPG 戰鬥。
 

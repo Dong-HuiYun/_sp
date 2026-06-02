@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Mini-OS 完整指令參考表 | 用法與說明</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-app: #f6f8fc;
+            --bg-surface: #ffffff;
+            --bg-code: #f1f5f9;
+            --border-light: #e4e9f0;
+            --border-med: #dce3ec;
+            --text-primary: #0a1c2f;
+            --text-secondary: #2c4c6e;
+            --text-tertiary: #6a7f9e;
+            --accent-blue: #3b82f6;
+            --accent-green: #2ecc71;
+            --accent-amber: #e67e22;
+            --accent-purple: #6c5ce7;
+            --accent-coral: #e76f51;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.03), 0 4px 8px rgba(0,0,0,0.02);
+            --radius-card: 24px;
+            --radius-table: 16px;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg-app);
+            color: var(--text-primary);
+            line-height: 1.45;
+            padding: 2rem 1.5rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 頁首區域 */
+        .hero {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .hero h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1e2b3c, #2c5a7a);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+            margin-bottom: 0.5rem;
+        }
+        .hero .sub {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            max-width: 700px;
+            margin: 0 auto;
+            border-bottom: 1px solid var(--border-light);
+            display: inline-block;
+            padding-bottom: 0.5rem;
+        }
+
+        /* 表格卡片 */
+        .table-card {
+            background: var(--bg-surface);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            overflow-x: auto;
+            margin-bottom: 2rem;
+            transition: all 0.1s ease;
+        }
+
+        .table-header {
+            padding: 1rem 1.5rem 0.8rem 1.5rem;
+            border-bottom: 2px solid var(--border-light);
+            background: rgba(248, 250, 254, 0.5);
+        }
+        .table-header h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+        }
+        .table-header p {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            margin-top: 6px;
+        }
+
+        .cmd-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            min-width: 780px;
+        }
+        .cmd-table th {
+            text-align: left;
+            padding: 1rem 1rem 0.8rem 1.5rem;
+            background-color: #f9fbfe;
+            font-weight: 600;
+            color: #1e3a5f;
+            border-bottom: 1px solid var(--border-med);
+            font-size: 0.85rem;
+        }
+        .cmd-table td {
+            padding: 1rem 1rem 1rem 1.5rem;
+            border-bottom: 1px solid #edf2f7;
+            vertical-align: top;
+            color: var(--text-primary);
+        }
+        .cmd-table tr:last-child td {
+            border-bottom: none;
+        }
+        .cmd-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: #0f3b5c;
+            background: #eef3fc;
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+        .cmd-syntax {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            background: var(--bg-code);
+            padding: 0.25rem 0.5rem;
+            border-radius: 10px;
+            display: inline-block;
+            color: #1e293b;
+        }
+        .badge-cat {
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 0.2rem 0.7rem;
+            border-radius: 20px;
+            background: #e2e8f0;
+            color: #334155;
+            width: fit-content;
+            letter-spacing: 0.2px;
+        }
+        .badge-core { background: #e0f2fe; color: #0369a1; }
+        .badge-sched { background: #e0e7ff; color: #3730a3; }
+        .badge-mem { background: #dcfce7; color: #15803d; }
+        .badge-ipc { background: #ffe4e0; color: #b91c1c; }
+        .badge-sem { background: #fef9c3; color: #854d0e; }
+        .badge-debug { background: #f1f0ff; color: #5b21b6; }
+        .badge-util { background: #e6f7ec; color: #2b6e3c; }
+        
+        .example {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            background: #f8fafc;
+            padding: 0.2rem 0.5rem;
+            border-radius: 8px;
+            display: inline-block;
+            color: #075985;
+            margin-top: 4px;
+        }
+        .desc {
+            color: #2d3e5f;
+            line-height: 1.45;
+        }
+
+        footer {
+            margin-top: 2.5rem;
+            text-align: center;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-light);
+            padding-top: 1.5rem;
+        }
+        @media (max-width: 680px) {
+            body { padding: 1rem; }
+            .cmd-table th, .cmd-table td { padding: 0.8rem 0.8rem 0.8rem 1rem; }
+        }
+        .note {
+            background: #fef9e6;
+            border-left: 3px solid var(--accent-amber);
+            padding: 0.8rem 1.2rem;
+            border-radius: 14px;
+            font-size: 0.75rem;
+            margin-top: 1rem;
+            color: #7a6300;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="hero">
+        <h1>📋 Mini-OS 指令集大全</h1>
+        <div class="sub">完整命令列表 · 語法範例 · 分類索引</div>
+    </div>
+
+    <div class="table-card">
+        <div class="table-header">
+            <h2>🔧 所有指令與用法對照表</h2>
+            <p>按功能分類：行程生命週期／排程／記憶體／IPC／信號量／除錯工具</p>
+        </div>
+        <div class="cmd-table-wrapper">
+            <table class="cmd-table">
+                <thead>
+                <tr><th width="18%">指令</th><th width="22%">語法 / 參數</th><th width="32%">說明與使用時機</th><th width="28%">範例</th></tr>
+                </thead>
+                <tbody>
+                    <!-- 基本行程 -->
+                    <tr><td><span class="cmd-name">ls</span></td><td><code class="cmd-syntax">ls</code></td><td class="desc">列出內建的程式名稱 (hello, count5, factorial, ipc_sender, ipc_receiver, mutex_demo, calc_add 等)</td><td><span class="example">$ ls</span></td></tr>
+                    <tr><td><span class="cmd-name">run</span></td><td><code class="cmd-syntax">run &lt;程式名&gt; [優先權]</code></td><td class="desc">建立行程並放入就緒佇列 (Ready)，預設優先權為1，可自訂數值(數字越大優先越高)。</td><td><span class="example">$ run count5 3<br>$ run factorial</span></td></tr>
+                    <tr><td><span class="cmd-name">start</span></td><td><code class="cmd-syntax">start [量子數]</code></td><td class="desc">開始執行排程器，可選時間量子(預設1)。行程將按排程演算法執行。</td><td><span class="example">$ start 2<br>$ start</span></td></tr>
+                    <tr><td><span class="cmd-name">ps</span></td><td><code class="cmd-syntax">ps</code></td><td class="desc">顯示所有行程狀態 (Ready / Running / Waiting / Terminated) 與 PID。</td><td><span class="example">$ ps</span></td></tr>
+                    <tr><td><span class="cmd-name">top</span></td><td><code class="cmd-syntax">top</code></td><td class="desc">動態顯示 CPU 使用次數、上下文切換次數、等待時間等統計資訊。</td><td><span class="example">$ top</span></td></tr>
+                    <tr><td><span class="cmd-name">kill</span></td><td><code class="cmd-syntax">kill &lt;PID&gt;</code></td><td class="desc">終止指定的行程 (可終止 Ready, Waiting, Running 狀態的行程)。</td><td><span class="example">$ kill 2</span></td></tr>
+                    <tr><td><span class="cmd-name">reset</span></td><td><code class="cmd-syntax">reset</code></td><td class="desc">重置整個系統，清除所有行程、釋放記憶體、重置信號量與 IPC 狀態。</td><td><span class="example">$ reset</span></td></tr>
+                    
+                    <!-- 排程與老化 -->
+                    <tr><td><span class="cmd-name">sched</span></td><td><code class="cmd-syntax">sched &lt;演算法&gt;</code></td><td class="desc">變更排程演算法：PRIORITY / SJF / FIFO。影響下次 start 後的執行順序。</td><td><span class="example">$ sched SJF<br>$ sched PRIORITY</span></td></tr>
+                    <tr><td><span class="cmd-name">aging</span></td><td><code class="cmd-syntax">aging on / off</code></td><td class="desc">啟用/停用老化機制。啟用後低優先權行程會逐漸提升優先權，避免飢餓。</td><td><span class="example">$ aging on</span></td></tr>
+                    
+                    <!-- 記憶體管理 -->
+                    <tr><td><span class="cmd-name">mem</span></td><td><code class="cmd-syntax">mem</code></td><td class="desc">顯示記憶體使用狀況：已用頁框數、缺頁次數、分頁表摘要。</td><td><span class="example">$ mem</span></td></tr>
+                    <tr><td><span class="cmd-name">load</span></td><td><code class="cmd-syntax">load &lt;檔案.asm&gt; [優先權]</code></td><td class="desc">從 programs/ 目錄載入組合語言原始檔，編譯成內部指令並產生行程。</td><td><span class="example">$ load programs/count5.asm 2</span></td></tr>
+                    
+                    <!-- IPC -->
+                    <tr><td><span class="cmd-name">ipc_sender</span></td><td><code class="cmd-syntax">run ipc_sender [pri]</code></td><td class="desc">IPC 範例 — 傳送端行程，發送整數 42 給接收端。</td><td><span class="example">$ run ipc_sender</span></td></tr>
+                    <tr><td><span class="cmd-name">ipc_receiver</span></td><td><code class="cmd-syntax">run ipc_receiver [pri]</code></td><td class="desc">IPC 範例 — 接收端行程，等待並印出接收到的數值。</td><td><span class="example">$ run ipc_receiver</span></td></tr>
+                    
+                    <!-- 信號量 -->
+                    <tr><td><span class="cmd-name">sem create</span></td><td><code class="cmd-syntax">sem create &lt;初始值&gt; &lt;名稱&gt;</code></td><td class="desc">建立一個命名信號量，初始值通常為1表示互斥鎖。</td><td><span class="example">$ sem create 1 mutex</span></td></tr>
+                    <tr><td><span class="cmd-name">sem</span></td><td><code class="cmd-syntax">sem</code></td><td class="desc">顯示所有信號量狀態 (名稱、值、等待佇列)。</td><td><span class="example">$ sem</span></td></tr>
+                    <tr><td><span class="cmd-name">mutex_demo</span></td><td><code class="cmd-syntax">run mutex_demo [pri]</code></td><td class="desc">使用信號量實作互斥的範例程式，展示 WAIT/SIGNAL 阻塞與喚醒。</td><td><span class="example">$ run mutex_demo 2</span></td></tr>
+                    
+                    <!-- 除錯/組合語言 -->
+                    <tr><td><span class="cmd-name">lsasm</span></td><td><code class="cmd-syntax">lsasm</code></td><td class="desc">列出 programs/ 目錄下所有 .asm 組合語言原始檔。</td><td><span class="example">$ lsasm</span></td></tr>
+                    <tr><td><span class="cmd-name">disasm</span></td><td><code class="cmd-syntax">disasm &lt;程式名&gt;</code></td><td class="desc">反組譯已載入的程式，顯示指令位址與機械碼對照。</td><td><span class="example">$ disasm factorial</span></td></tr>
+                    
+                    <!-- 歷史 / 死結 -->
+                    <tr><td><span class="cmd-name">history</span></td><td><code class="cmd-syntax">history</code></td><td class="desc">顯示最近執行的指令歷史記錄 (含編號)。</td><td><span class="example">$ history</span></td></tr>
+                    <tr><td><span class="cmd-name">!n</span></td><td><code class="cmd-syntax">!&lt;數字&gt;</code></td><td class="desc">重新執行歷史記錄中第 n 條指令。</td><td><span class="example">$ !2</span></td></tr>
+                    <tr><td><span class="cmd-name">deadlock</span></td><td><code class="cmd-syntax">deadlock [resolve]</code></td><td class="desc">偵測目前系統是否有死結 (循環等待)。加上 resolve 嘗試解除。</td><td><span class="example">$ deadlock<br>$ deadlock resolve</span></td></tr>
+                    
+                    <!-- TUI 與範例程式 -->
+                    <tr><td><span class="cmd-name">tui</span></td><td><code class="cmd-syntax">tui</code></td><td class="desc">全螢幕儀表板，即時顯示行程、記憶體、IPC、信號量，按 q 退出。</td><td><span class="example">$ tui</span></td></tr>
+                    <tr><td><span class="cmd-name">calc_add</span></td><td><code class="cmd-syntax">run calc_add &lt;數字&gt;</code></td><td class="desc">內建示範程式：計算加法回傳 (實際效果視指令集而定)。</td><td><span class="example">$ run calc_add 5</span></td></tr>
+                    <tr><td><span class="cmd-name">exit</span></td><td><code class="cmd-syntax">exit</code></td><td class="desc">離開 Mini-OS 模擬器 (若在互動式環境)。</td><td><span class="example">$ exit</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 快速索引卡片：分類標籤 -->
+    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; margin: 1rem 0 0.5rem;">
+        <span class="badge-cat badge-core">⚙️ 行程管理: run, ps, kill, reset, start, top</span>
+        <span class="badge-cat badge-sched">📊 排程: sched, aging</span>
+        <span class="badge-cat badge-mem">🧠 記憶體: mem, load, lsasm, disasm</span>
+        <span class="badge-cat badge-ipc">📨 IPC: ipc_sender, ipc_receiver</span>
+        <span class="badge-cat badge-sem">🔐 信號量: sem create, sem, mutex_demo</span>
+        <span class="badge-cat badge-debug">🪲 除錯: deadlock, history, !n, tui</span>
+    </div>
+
+    <!-- 常見典型工作流範例區塊 -->
+    <div class="table-card" style="margin-top: 1.2rem;">
+        <div class="table-header">
+            <h2>📌 典型操作流程範例</h2>
+            <p>從建立行程到觀察排程、記憶體及 IPC 的完整步驟</p>
+        </div>
+        <div style="padding: 1.2rem 1.5rem 1.5rem;">
+            <div class="cmd-container" style="background: #f1f5f9; border-radius: 16px; margin-bottom: 1rem;">
+                <div class="cmd-line"><span class="prompt">$</span><span class="cmd">reset</span></div>
+                <div class="cmd-line"><span class="prompt">$</span><span class="cmd">sched PRIORITY</span></div>
+                <div class="cmd-line"><span class="prompt">$</span><span class="cmd">aging on</span></div>
+                <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run count5 5</span></div>
+                <div class="cmd-line"><span class="prompt">$</span><span class="cmd">run factorial 2</span></div>
+                <div class="cmd-line"><span class="prompt">$</span><span class="cmd">ps</span></div>
+                <div class="cmd-line"><span class="prompt">$</span><span class="cmd">start 2</span></div>
+                <div class="cmd-line"><span class="prompt">$</span><span class="cmd">top</span></div>
+                <div class="cmd-line"><span class="prompt">$</span><span class="cmd">mem</span></div>
+            </div>
+            <p class="desc" style="font-size:0.8rem; color:#2c5a7a;">✅ 說明：重置後設定優先權排程 + 老化，建立兩個行程，start 後將按照優先權執行 (count5 先跑)，top 可觀察切換次數，mem 檢查頁框釋放狀況。</p>
+        </div>
+    </div>
+
+    <div class="note">
+        💡 提示：所有「行程名稱」皆可搭配優先權參數（例如 <code class="cmd-syntax">run factorial 4</code>）。SJF 演算法會依據指令條數動態估算執行時間。信號量操作內建於 mutex_demo 中，無需手動呼叫 WAIT/SIGNAL 指令。
+    </div>
+
+    <footer>
+        Mini-OS 指令表 v1.0 · 支援行程排程、分頁記憶體、IPC 信箱、信號量同步與死結偵測 · 詳細使用情境請參考互動式指南
+    </footer>
+</div>
+</body>
+</html>

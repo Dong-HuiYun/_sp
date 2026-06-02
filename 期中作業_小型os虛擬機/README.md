@@ -4,7 +4,10 @@
 
 本專案提供兩種操作模式：
 1.  **終端機互動模式 (`main.py`)**：適用於 Windows 原生環境，提供強大的指令列 Shell。
-[詳細指令網頁説明]()
+[實作網頁説明](https://dong-huiyun.github.io/_sp/%E6%9C%9F%E4%B8%AD%E4%BD%9C%E6%A5%AD_%E5%B0%8F%E5%9E%8Bos%E8%99%9B%E6%93%AC%E6%A9%9F/%E4%BD%BF%E7%94%A8%E8%AA%AC%E6%98%8E.html)
+
+[詳細指令表格](https://dong-huiyun.github.io/_sp/%E6%9C%9F%E4%B8%AD%E4%BD%9C%E6%A5%AD_%E5%B0%8F%E5%9E%8Bos%E8%99%9B%E6%93%AC%E6%A9%9F/%E5%8A%9F%E8%83%BD%E5%B0%8D%E7%85%A7%E5%9C%96%E8%A1%A8.html)
+
 2.  **視覺化圖形儀表板 (`gui_main.py`)**：運行於 WSL 環境，即時監控系統資源與行程狀態。
 
 ---
@@ -113,6 +116,7 @@
 系統內建多種測試程式，例如 `factorial` (階乘計算)、`ipc_sender` (通訊測試)、`mutex_demo` (互斥鎖)。
 
 ```nasm
+
 ; 範例：計數到 5 的程式
 SET R1 0     ; R1 = 0
 SET R2 1     ; R2 = 1 (增量)

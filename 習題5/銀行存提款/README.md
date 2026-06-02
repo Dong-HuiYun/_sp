@@ -64,9 +64,13 @@
 
 ## 編譯與執行
 
+進入`wsl`環境
+
 ```bash
-g++ -std=c++17 -pthread -O2 -o bank bank.cpp
+
+g++ bank.cpp -o bank
 ./bank
+
 ```
 
 ## 預期輸出

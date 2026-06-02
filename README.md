@@ -19,15 +19,15 @@
 
       [習題1](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C1)：[Google AI Studio 對話連結](https://aistudio.google.com/app/prompts?state=%7B%22ids%22:%5B%221chDpbNUfRiMtLmSJMenMdjvk-iIIkVxJ%22%5D,%22action%22:%22open%22,%22userId%22:%22104108532823114063447%22,%22resourceKeys%22:%7B%7D%7D&usp=sharing,)
 
-      [習題2](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C2_%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80)：[Claude 對話連結](https://claude.ai/share/13652214-81eb-4dde-b28d-385f0f947496)、[Google AI Studio 對話連結](https://aistudio.google.com/app/prompts?state=%7B%22ids%22:%5B%221HBlnETdXpNfCEdiofFVheLA1G81_8xfh%22%5D,%22action%22:%22open%22,%22userId%22:%22104108532823114063447%22,%22resourceKeys%22:%7B%7D%7D&usp=sharing,)、[豆包對話連結](https://www.doubao.com/thread/w4e45414a6b57c657)
+      [習題2](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C2_%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80)：[Claude 對話連結](https://claude.ai/share/13652214-81eb-4dde-b28d-385f0f947496)、[Google AI Studio 對話連結](https://aistudio.google.com/app/prompts?state=%7B%22ids%22:%5B%221HBlnETdXpNfCEdiofFVheLA1G81_8xfh%22%5D,%22action%22:%22open%22,%22userId%22:%22104108532823114063447%22,%22resourceKeys%22:%7B%7D%7D&usp=sharing,)、[豆包對話連結-生成ui圖](https://www.doubao.com/thread/w4e45414a6b57c657)
       
-      [習題3](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C3)：
+      [習題3](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C3)：[豆包對話連結-生成劇情圖](https://www.doubao.com/thread/wf6ab0ee2300897cf)、[DeepSeek 對話連結-美化網頁界面](https://www.doubao.com/thread/wf6ab0ee2300897cf)、[Gemini 對話連結](https://gemini.google.com/share/ef86477cc5f8)、[Gemini 對話連結-詢問導入本地模型做法](https://gemini.google.com/share/2800d06c2d1c)
 
-      [習題4]()
+      [習題4](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C4_%E7%B3%BB%E7%B5%B1%E7%A8%8B%E5%BC%8F%E6%9B%B8%E7%B1%8D)：詢問了opencode
 
-      [習題5]()
+      [習題5](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C5)：[Claude 對話連結](https://claude.ai/share/7f65db1d-ba39-497d-a4b6-5cb96e25fe8f)、
 
-      [習題6]()
+      [習題6](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C6)：[Claude 對話連結](https://claude.ai/share/ca437078-65ff-4527-a530-da686e456c39)、[DeepSeek 對話連結](https://chat.deepseek.com/share/p4zp1vt1k6w8kx45xt)
 
       [期中作業]()
 
@@ -80,7 +80,7 @@
 ---
 
 ### 習題 6 -- 行程與檔案相關程式 (fork, execvp, close, open, read, write, dup2, stdin 0, stdout 1, stderr 2)
-- **完成狀況：** (已完成 / 未完成)
+- **完成狀況：** 使用 AI 理解了行程與檔案相關的程式，並讓AI生成了視覺化的html檔解釋相關指令。
 - **程式碼/檔案路徑：** `path/to/exercise6/`
 - **成果說明：**
   *(請在此處說明程式如何運用 fork、execvp 進行行程控制，以及如何操作檔案描述子與 I/O 重導向)*

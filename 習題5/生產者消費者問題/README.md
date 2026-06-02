@@ -93,9 +93,13 @@ not_empty_.wait(lock, [this] { return !queue_.empty(); });
 
 ## 編譯與執行
 
+進入`wsl`環境
+
 ```bash
-g++ -std=c++17 -pthread -O2 -o producer_consumer producer_consumer.cpp
-./producer_consumer
+
+g++ Producer_consumer.cpp -o Producer_consumer
+./Producer_consumer
+
 ```
 
 ## 預期輸出

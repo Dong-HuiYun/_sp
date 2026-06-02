@@ -13,10 +13,11 @@
 
 1. [背景知識](#背景知識)
 2. [01_fork.py](#01_fork)
-3. [背景知識](#背景知識)
-4. [背景知識](#背景知識)
-5. [背景知識](#背景知識)
-6. [背景知識](#背景知識)
+3. [02_fork_execvp](#02_fork_execvp)
+4. [03_open_read_write](#03_open_read_write)
+5. [04_dup2_redirect](#04_dup2_redirect)
+6. [05_pipe_fork](#05_pipe_fork)
+7. [06_pipe_bidirectional](#06_pipe_bidirectional)
 
 ---
 
@@ -95,7 +96,7 @@ PID 是 OS 動態分配的 id，每次執行程式都會重新發放，因此每
 
 ![01執行結果圖](images/01.png)
 
-## 02_fork_execvp.py
+## 02_fork_execvp
 
 `fork()` + `execvp()` 執行新程式
 

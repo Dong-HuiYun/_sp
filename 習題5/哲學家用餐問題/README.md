@@ -100,9 +100,13 @@ Kant       拿著筷子 4，等待筷子 0  ← 形成循環
 
 ## 編譯與執行
 
+進入`wsl`環境
+
 ```bash
-g++ -std=c++17 -pthread -O2 -o dining_philosophers dining_philosophers.cpp
+
+g++ dining_philosophers.cpp -o dining_philosophers
 ./dining_philosophers
+
 ```
 
 ## 預期輸出

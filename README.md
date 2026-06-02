@@ -29,7 +29,7 @@
 
       [習題6](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C6)：[Claude 對話連結](https://claude.ai/share/ca437078-65ff-4527-a530-da686e456c39)、[DeepSeek 對話連結](https://chat.deepseek.com/share/p4zp1vt1k6w8kx45xt)
 
-      [期中作業]()
+      [期中作業](https://github.com/Dong-HuiYun/_sp/tree/master/%E6%9C%9F%E4%B8%AD%E4%BD%9C%E6%A5%AD_%E5%B0%8F%E5%9E%8Bos%E8%99%9B%E6%93%AC%E6%A9%9F)：[Google AI Studio 對話連結](https://aistudio.google.com/app/prompts?state=%7B%22ids%22:%5B%221XtG8ithix-0xhlGqBKfcKzhDTM-MKLfr%22%5D,%22action%22:%22open%22,%22userId%22:%22104108532823114063447%22,%22resourceKeys%22:%7B%7D%7D&usp=sharing)、[Google AI Studio 對話連結2](https://aistudio.google.com/app/prompts?state=%7B%22ids%22:%5B%221ks5kTr6wlNKlY_GhG6KbDkyHaV2j7jma%22%5D,%22action%22:%22open%22,%22userId%22:%22104108532823114063447%22,%22resourceKeys%22:%7B%7D%7D&usp=sharing)、[Google AI Studio 對話連結3](https://aistudio.google.com/app/prompts?state=%7B%22ids%22:%5B%2218nsOjE9-7m9TePbpy2AMR9kgNvmtMdZo%22%5D,%22action%22:%22open%22,%22userId%22:%22104108532823114063447%22,%22resourceKeys%22:%7B%7D%7D&usp=sharing)、[Claude 對話連結](https://claude.ai/share/de6a31a4-c11c-47e3-9a41-144df663bc55)、[DeepSeek 對話連結](https://chat.deepseek.com/share/lkagehnq54qne1vl27)
 
 ---
 
@@ -88,12 +88,11 @@
 
 ### 習題 7 -- 請先決定期中作業的題目貼上來
 - **確認期中題目：** ：小型虛擬機實作系統程式
-- **題目簡述：**
-  *(請在此處簡短說明這個題目想實作的內容與目標)*
+- **題目簡述：**模擬作業系統的操作，讓使用者能動態調整行程優先權、觸發死結偵測，並深入理解分頁錯誤與虛擬記憶體映射的技術細節。
+
 
 ---
 
 ### 期中作業：請寫一份『程式專案 + (報告或學習筆記)』等，必須是和本課程相關的主題！
-- **專案名稱：** - **程式碼/報告路徑：** [習題]()
-- **專案詳細說明與心得：**
-  *(請在此處詳細撰寫您的期中專案架構、實作技術、遇到的困難與解決方法，以及本課程相關主題的學習筆記)*
+- **專案名稱：** - **程式碼/報告路徑：** [期中作業](https://github.com/Dong-HuiYun/_sp/tree/master/%E6%9C%9F%E4%B8%AD%E4%BD%9C%E6%A5%AD_%E5%B0%8F%E5%9E%8Bos%E8%99%9B%E6%93%AC%E6%A9%9F)
+- **專案詳細說明與心得：**本專案利用 Python 實作了一個微型作業系統與虛擬機，核心涵蓋 CPU 指令模擬、行程五狀態轉換及分頁記憶體管理。系統不僅支援多樣化的排程演算法（如 RR、SJF）與老化機制，更整合了死結偵測與號誌同步功能，並提供 CLI 指令列與 WSL 環境下的 PyQt6 視覺化儀表板。透過不斷詢問AI，新增更多系統程式相關的功能，而界面部分，從一開始的終端機指令輸入，到後續新增了GUI圖形化界面，讓人能直觀地看出作業系統的排程操作。

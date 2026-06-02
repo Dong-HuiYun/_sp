@@ -57,42 +57,57 @@
 
 ### 習題 3 -- 請用 AI 的 IDE，或命令列方式，做一個軟體專案 (或延伸其他專案修改)
 - **完成狀況：** 藉由AI的幫助實作了C0模擬器以及簡易的文字冒險游戲。
+
 - **程式碼/檔案路徑：** [習題3](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C3)
+
 - **成果說明：**[成果説明](https://github.com/Dong-HuiYun/_sp/blob/master/%E7%BF%92%E9%A1%8C3/README.md)
 
 ---
 
 ### 習題 4 -- 用 AI 寫一本和系統程式有關的书，給大家看，網址貼上來 (放 github 上)
+
 - **完成狀況：** 使用 OpenCode 書寫了一本描述系統程式的書籍，並大致理解了書中所描述的內容
+
 - **電子書網址：** [習題4](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C4_%E7%B3%BB%E7%B5%B1%E7%A8%8B%E5%BC%8F%E6%9B%B8%E7%B1%8D)
+
 - **書籍成果：**從系統程式的基礎概念到進階應用，並附帶實際的程式碼説明，系統性地探討系統程式的所有核心領域。
 
 
 ---
 
 ### 習題 5 -- thread, race condition, mutex, deadlock 相關的程式
+
 - **完成狀況：** 使用 AI 理解thread, race condition, mutex, deadlock，並實作了銀行存提款、消費者與生產者、哲學家用餐問題。
+
 - **程式碼/檔案路徑：** [習題5](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C5)
+
 - **成果說明：**[成果説明](https://github.com/Dong-HuiYun/_sp/blob/master/%E7%BF%92%E9%A1%8C5/README.md)
 
 
 ---
 
 ### 習題 6 -- 行程與檔案相關程式 (fork, execvp, close, open, read, write, dup2, stdin 0, stdout 1, stderr 2)
+
 - **完成狀況：** 使用 AI 理解了行程與檔案相關的程式，並讓AI生成了視覺化的html檔解釋相關指令。
+
 - **程式碼/檔案路徑：** [習題6](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C6)、[行程與檔案視覺化網站](https://dong-huiyun.github.io/_sp/習題6/行程與檔案.html)
+
 - **成果說明：**[成果説明](https://github.com/Dong-HuiYun/_sp/blob/master/%E7%BF%92%E9%A1%8C6/README.md)
 
 
 ---
 
 ### 習題 7 -- 請先決定期中作業的題目貼上來
+
 - **確認期中題目：** ：小型虛擬機實作系統程式
+
 - **題目簡述：**模擬作業系統的操作，讓使用者能動態調整行程優先權、觸發死結偵測，並深入理解分頁錯誤與虛擬記憶體映射的技術細節。
 
 
 ---
 
 ### 期中作業：請寫一份『程式專案 + (報告或學習筆記)』等，必須是和本課程相關的主題！
+
 - **專案名稱：** - **程式碼/報告路徑：** [期中作業](https://github.com/Dong-HuiYun/_sp/tree/master/%E6%9C%9F%E4%B8%AD%E4%BD%9C%E6%A5%AD_%E5%B0%8F%E5%9E%8Bos%E8%99%9B%E6%93%AC%E6%A9%9F)
+
 - **專案詳細說明與心得：**本專案利用 Python 實作了一個微型作業系統與虛擬機，核心涵蓋 CPU 指令模擬、行程五狀態轉換及分頁記憶體管理。系統不僅支援多樣化的排程演算法（如 RR、SJF）與老化機制，更整合了死結偵測與號誌同步功能，並提供 CLI 指令列與 WSL 環境下的 PyQt6 視覺化儀表板。透過不斷詢問AI，新增更多系統程式相關的功能，而界面部分，從一開始的終端機指令輸入，到後續新增了GUI圖形化界面，讓人能直觀地看出作業系統的排程操作。

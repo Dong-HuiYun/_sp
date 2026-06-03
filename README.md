@@ -21,7 +21,7 @@
 
       [習題2](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C2_%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80)：[Claude 對話連結](https://claude.ai/share/13652214-81eb-4dde-b28d-385f0f947496)、[Google AI Studio 對話連結](https://aistudio.google.com/app/prompts?state=%7B%22ids%22:%5B%221HBlnETdXpNfCEdiofFVheLA1G81_8xfh%22%5D,%22action%22:%22open%22,%22userId%22:%22104108532823114063447%22,%22resourceKeys%22:%7B%7D%7D&usp=sharing,)、[豆包對話連結-生成ui圖](https://www.doubao.com/thread/w4e45414a6b57c657)
       
-      [習題3](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C3)：[豆包對話連結-生成劇情圖](https://www.doubao.com/thread/wf6ab0ee2300897cf)、[DeepSeek 對話連結-美化網頁界面](https://www.doubao.com/thread/wf6ab0ee2300897cf)、[Gemini 對話連結](https://gemini.google.com/share/ef86477cc5f8)、[Gemini 對話連結-詢問導入本地模型做法](https://gemini.google.com/share/2800d06c2d1c)
+      [習題3](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C3)：[豆包對話連結-生成劇情圖](https://www.doubao.com/thread/wf6ab0ee2300897cf)x、[Gemini 對話連結](https://gemini.google.com/share/ef86477cc5f8)、[Gemini 對話連結-詢問導入本地模型做法](https://gemini.google.com/share/2800d06c2d1c)、[DeepSeek 對話連結-美化C0網頁界面](https://chat.deepseek.com/share/frd0su1e4tvwb4fjio)
 
       [習題4](https://github.com/Dong-HuiYun/_sp/tree/master/%E7%BF%92%E9%A1%8C4_%E7%B3%BB%E7%B5%B1%E7%A8%8B%E5%BC%8F%E6%9B%B8%E7%B1%8D)：詢問了opencode
 

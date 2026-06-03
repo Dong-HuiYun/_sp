@@ -47,14 +47,35 @@
 2. 在左側編輯器輸入代碼，點擊 **Assemble** 後即可開始 **Step Execution**。
 
 ### 運行碼農地下城遊戲
+
+#### 終端機中遊玩
+
+```bash
+
+   python rpg_game/rpg_game.py
+
+```
+
+#### GUI視覺化界面中遊玩
+
 1. 確保環境已安裝 Python 3。
 2. 在終端機 (Terminal/Command Prompt) 輸入以下指令：
 
 ```bash
+
    python rpg_game/main.py
+
 ```
 
 3. 依照畫面提示輸入代碼名稱並進行選擇。
+
+### 由本地部署模型自動生成模式
+
+```bash
+
+   python rpg_game/rpg_game_ollama.py
+
+```
 
 ---
 

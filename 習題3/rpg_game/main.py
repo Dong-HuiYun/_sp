@@ -4,6 +4,10 @@ from models import Player
 import stages
 import os
 
+# 強制把工作目錄切換到 main.py 所在的資料夾
+# 這樣 assets/images/xxx.png 的相對路徑才能正確找到圖片
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 # --- 初始化設定 ---
 DEFAULT_WIDTH = 1000
 DEFAULT_HEIGHT = 750
@@ -90,11 +94,15 @@ class CodeQuestGUI:
         
         # 載入圖片邏輯
         self.raw_image = None
-        if "image" in scene_data and os.path.exists(scene_data["image"]):
-            try:
-                self.raw_image = pygame.image.load(scene_data["image"]).convert_alpha()
-            except Exception as e:
-                print(f"圖片載入出錯: {e}")
+        if "image" in scene_data:
+            img_path = scene_data["image"]
+            print(f"[圖片] 嘗試載入：{img_path}  →  存在：{os.path.exists(img_path)}")
+            if os.path.exists(img_path):
+                try:
+                    self.raw_image = pygame.image.load(img_path).convert_alpha()
+                    print(f"[圖片] 載入成功！尺寸：{self.raw_image.get_size()}")
+                except Exception as e:
+                    print(f"[圖片] 載入失敗：{e}")
         
         self.apply_image_scaling() # 載入後立即縮放一次
         
